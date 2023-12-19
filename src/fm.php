@@ -1,10 +1,5 @@
 <?php
-define('VERSION','18.2023.12.15');
-/*
-dev.php?action=dir&path=%2Fvar%2Fwww%2Fbalticsalinity
-dev.php?action=error&message=Test%2C123&path=%2Fvar%2Fwww%2Fbalticsalinity
-*/
-
+define('VERSION','19.2023.12.18');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -13,7 +8,6 @@ function getfrom($array, $key, $default) {return isset($array[$key]) ? $array[$k
 
 $path = getfrom($_GET, 'path', '');
 $action = getfrom($_GET, 'action', '');
-// TODO add an auxilairy row zero height and 100% width to make the first row full-weight while listing an emty directory
 // TODO do not show the size for directories!
 
 function layoutHeader() {
@@ -31,10 +25,10 @@ function layoutHeader() {
 ._btn-a:hover,
 ._btn-a:focus{text-decoration:none;background:#fff;color:#333;}
 ._btn-a:active{outline:1px solid #fff;outline-offset:1px;}
-button+button{margin-left:.5rem;}
+button+button,.v-btn+.v-btn,button+.v-btn{margin-left:.8rem;}
 textarea{outline:none;background:#f7f8f9;color:#222;}
 textarea:focus{outline:2px solid #b3b2be;outline-offset:-1px;}
-input{color:#222;background:#f7f8f9;border:1px solid #f0f0f0;}
+input{color:#222;background:#f7f8f9;border:1px solid #ece7e7;padding:.5rem;font-size:1rem;line-height:1.2rem;}
 input:focus{border-color:#b3b2be;}
 .wrapper{display:flex;width:100%;height:100%;flex-direction:column;padding:0;margin:0;overflow:auto;}
 .__middle{justify-content: center;align-items: center;text-align: center;}
@@ -394,17 +388,18 @@ else if ($action == 'saveas_form') {
 else if ($action == 'new_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
-    echo '<dir class="wrapper __middle">';
-    echo '<form method="POST" action="?action=new_handler">';
-    echo    '<p>Create new</p>';
-    echo '<label><input type="radio" name="type" value="file"> file</label>';
-    echo '<label><input type="radio" name="type" value="dir" checked> directory</label>';
-    echo    '<input type="hidden" name="redirect" value="'.$redirect.'"/>';
-    echo    '<input style="display:block;width:100%;" type="text" name="path" value="' . htmlspecialchars($path).'/" required autofocus/>';
-    echo    '<a href="' . $redirect . '">Cancel</a>';
-    echo    '<button type="reset">Reset</button>';
-    echo    '<button type="submit">Create</button>';
-    echo '</form>';
+    echo '<dir class="wrapper __middle">',
+            '<form method="POST" action="?action=new_handler" style="width:480px">',
+                '<p>Create new: ',
+                    '<label><input type="radio" name="type" value="file"> file</label>',
+                    '<label><input type="radio" name="type" value="dir" checked> directory</label>',
+                '</p>',
+                '<input type="hidden" name="redirect" value="', $redirect,'"/>',
+                '<input style="display:block;width:100%;margin:1rem 0;" type="text" name="path" value="', htmlspecialchars($path), '/" required autofocus/>',
+                '<button type="submit">Create</button>',
+                '<button type="reset" class="">Reset</button>',
+                '<a href="', $redirect, '" style="margin-left:1rem;">Cancel</a>',
+        '</form></div>';
     echo layoutTail();
 }
 else if ($action == 'upload_form') {
