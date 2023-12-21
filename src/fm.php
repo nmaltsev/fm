@@ -18,7 +18,7 @@ function layoutHeader() {
         <meta name="robots" content="noindex, nofollow">
         <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
         <style>
-        :root{--blue1:#0071ce;}
+        :root{--blue1:#0071ce;--dialog-width:480px;}
         body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
 .v-btn,button{cursor:pointer;border:none;padding:.5rem 1rem;transition:background-color .2s,color .2s,box-shadow .2s;}
 ._btn-a{border:1px solid #fff;padding:.3rem .5rem;color:#fff;background:transparent;}
@@ -57,6 +57,7 @@ a.resource:visited{color:#b31edd;}
 .__primary-transparent:focus {
 	background-color: #f1f1f1;
 }
+.dialog{width:var(--dialog-width);}
         </style>
     </head>
     <body>';
@@ -389,7 +390,7 @@ else if ($action == 'new_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
     echo '<dir class="wrapper __middle">',
-            '<form method="POST" action="?action=new_handler" style="width:480px">',
+            '<form method="POST" action="?action=new_handler" class="dialog">',
                 '<p>Create new: ',
                     '<label><input type="radio" name="type" value="file"> file</label>',
                     '<label><input type="radio" name="type" value="dir" checked> directory</label>',

@@ -81,9 +81,8 @@ function list_background($command) {
 }
 
 function execute_user_command($command, $writeinlog) {
-    $cmd_id = rand(5, 1500);
-
     if ($writeinlog) {
+        $cmd_id = rand(5, 1500);
         $log_path = '/tmp/out.'.$cmd_id.'.log';
         $execstring = /*'nohup ' .*/ $command . ' 2>>' . $log_path . ' 1>>' . $log_path .' & echo $!';
         $pid = exec($execstring, $output, $code);
@@ -105,21 +104,21 @@ function execute_user_command($command, $writeinlog) {
         echo '</pre>';
         if (!$is_running) unlink($log_path);
     } else {
-        // 'nohup '
-        $execstring = /*'nohup ' .*/ $command . ' 2>&1 &';
-        // echo 'CMD: ', $execstring, '<br>';
-        ob_start();
-        passthru($execstring);
-        
-        $data = ob_get_clean();
-
-        echo '<pre>';
-        print_r($data);
-        echo '</pre>';
+        // execute_cmd($command);
+        execute_user_command3($command . ' 2>&1 &');
     }
 }
+function execute_cmd($cmd){
+    $execstring = $cmd . ' 2>&1 &';
+    ob_start();
+    passthru($execstring);
+    $data = ob_get_clean();
+    echo '<pre>';
+    print_r($data);
+    echo '</pre>';
+}
 
-// tail -f /dev/null
+// Stress test. An example of infinite command: `tail -f /dev/null`
 
 function execute_user_command3($command) {
     while (@ ob_end_flush()); // если есть, прекращает все буферы вывода
