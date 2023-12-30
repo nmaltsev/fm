@@ -1,5 +1,5 @@
 <?php
-define('VERSION','19.2023.12.18');
+define('VERSION','20.2023.12.30');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -31,7 +31,7 @@ textarea:focus{outline:2px solid #b3b2be;outline-offset:-1px;}
 input{color:#222;background:#f7f8f9;border:1px solid #ece7e7;padding:.5rem;font-size:1rem;line-height:1.2rem;}
 input:focus{border-color:#b3b2be;}
 .wrapper{display:flex;width:100%;height:100%;flex-direction:column;padding:0;margin:0;overflow:auto;}
-.__middle{justify-content: center;align-items: center;text-align: center;}
+.centered,.__middle{justify-content:center;align-items:center;text-align:center;}
 .files{list-style:none;margin:0;display:grid;grid-gap:0;white-space:nowrap;flex:1 1 auto;overflow:auto;padding:0 0 .5rem 0;
     grid-auto-rows: min-content;font-size: 0.8rem;
     line-height: 1.2rem;
@@ -155,9 +155,9 @@ if ($action == 'dir') {
             }
             if (strpos($mime_type, 'audio/') === 0) {
                 $next_path = '?action=forward2&path='.urlencode($path);
-                echo '<audio controls autoplay>',
+                echo '<div class="f-wrapper f-max-content centered"><audio controls autoplay style="width:100%">',
                     '<source src="',$next_path,'" type="',$mime_type,'"/>',
-                '</audio>';
+                '</audio></div>';
                 return;
             }
             if (strpos($mime_type, 'image/') === 0)  {
