@@ -1,5 +1,5 @@
 <?php
-define('VERSION','20.2023.12.30');
+define('VERSION','21.2024.01.03');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -18,23 +18,26 @@ function layoutHeader() {
         <meta name="robots" content="noindex, nofollow">
         <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
         <style>
-        :root{--blue1:#0071ce;--dialog-width:480px;}
+        :root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}
         body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
 .v-btn,button{cursor:pointer;border:none;padding:.5rem 1rem;transition:background-color .2s,color .2s,box-shadow .2s;}
 ._btn-a{border:1px solid #fff;padding:.3rem .5rem;color:#fff;background:transparent;}
 ._btn-a:hover,
 ._btn-a:focus{text-decoration:none;background:#fff;color:#333;}
 ._btn-a:active{outline:1px solid #fff;outline-offset:1px;}
-button+button,.v-btn+.v-btn,button+.v-btn{margin-left:.8rem;}
+button+button,.v-btn+.v-btn,button+.v-btn,button+a{margin-left:.8rem;}
+.__b-primary{background:var(--blue1);color:#fff;}
+.__b-primary:hover,.__b-primary:focus{background:var(--fucsia);}
+.__b-secondary1{background:#fff;outline: 1px solid var(--blue1);color: var(--blue1);}
 textarea{outline:none;background:#f7f8f9;color:#222;}
 textarea:focus{outline:2px solid #b3b2be;outline-offset:-1px;}
 input{color:#222;background:#f7f8f9;border:1px solid #ece7e7;padding:.5rem;font-size:1rem;line-height:1.2rem;}
 input:focus{border-color:#b3b2be;}
+.target-input{display:block;width:100%;margin:1rem 0;box-sizing:border-box;}
 .wrapper{display:flex;width:100%;height:100%;flex-direction:column;padding:0;margin:0;overflow:auto;}
 .centered,.__middle{justify-content:center;align-items:center;text-align:center;}
 .files{list-style:none;margin:0;display:grid;grid-gap:0;white-space:nowrap;flex:1 1 auto;overflow:auto;padding:0 0 .5rem 0;
-    grid-auto-rows: min-content;font-size: 0.8rem;
-    line-height: 1.2rem;
+    grid-auto-rows:min-content;font-size:.9rem;line-height:1.2rem;
     grid-template-columns: min-content min-content min-content min-content min-content min-content auto;}
 .files>li{display:contents;}
 .files>li:hover > span, .files>li:hover > a{background:#ddf4ffd6;}
@@ -45,7 +48,7 @@ input:focus{border-color:#b3b2be;}
 .files-panel > a {margin:0 0 0 1rem;}
 a{text-decoration:none;color:#0049fd;}
 a:hover,a:focus,a:active{text-decoration:underline;}
-a.resource:visited{color:#b31edd;}
+a.resource:visited{color:var(--fucsia);}
 .f-min-content{flex:0 0 auto;}
 .f-max-content{flex:1 1 auto;}
 .f-wrapper{display:flex;overflow:hidden;}
@@ -391,32 +394,32 @@ else if ($action == 'new_form') {
     echo layoutHeader();
     echo '<dir class="wrapper __middle">',
             '<form method="POST" action="?action=new_handler" class="dialog">',
-                '<p>Create new: ',
+                '<p><b>Create new:</b> ',
                     '<label><input type="radio" name="type" value="file"> file</label>',
                     '<label><input type="radio" name="type" value="dir" checked> directory</label>',
                 '</p>',
                 '<input type="hidden" name="redirect" value="', $redirect,'"/>',
-                '<input style="display:block;width:100%;margin:1rem 0;" type="text" name="path" value="', htmlspecialchars($path), '/" required autofocus/>',
-                '<button type="submit">Create</button>',
+                '<input class="target-input" type="text" name="path" value="', htmlspecialchars($path), '/" required autofocus/>',
+                '<button type="submit" class="__b-primary">Create</button>',
                 '<button type="reset" class="">Reset</button>',
-                '<a href="', $redirect, '" style="margin-left:1rem;">Cancel</a>',
+                '<a href="', $redirect, '">Cancel</a>',
         '</form></div>';
     echo layoutTail();
 }
 else if ($action == 'upload_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
-    echo '<dir class="wrapper __middle">';
-    echo '<form onSubmit="uploadHandler(event)" method="POST">';
-    echo    '<input type="hidden" name="redirect" value="'.$redirect.'"/>';
-    echo    '<input type="hidden" name="path" value="'.$path.'"/>';
-    echo    '<label>Select a File to Upload:';
-    echo    '<input type="file" name="file" id="file"/>';
-    echo    '</label>';
-    echo    '<a href="' . $redirect . '">Back</a>';
-    echo    '<button type="reset">Reset</button>';
-    echo    '<button type="submit">Upload</button>';
-    echo '</form>';
+    echo '<dir class="wrapper __middle">',
+        '<form onSubmit="uploadHandler(event)" method="POST" class="dialog">',
+            '<input type="hidden" name="redirect" value="',$redirect,'"/>',
+            '<input type="hidden" name="path" value="',$path,'"/>',
+            '<label><h4>Select a File to Upload:</h4>',
+                '<input type="file" name="file" id="file" class="target-input"/>',
+            '</label>',
+            '<button type="submit" class="__b-primary">Upload</button>',
+            '<button type="reset">Reset</button>',
+            '<a href="', $redirect, '">Back</a>',
+        '</form>';
     echo '<script>';
 echo "
 const chunk_size = 512*1024; /* 1048570 1MB chunk size*/
