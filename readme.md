@@ -3,7 +3,7 @@
 - `chmod 777 fm.php`
 
 ## Run without any server
-`php -S localhost:9000 -t ./src`
+`php -S 0.0.0.0:9000 -t ./src`
 
 Links:
 fm.php?action=dir&path=%2Fvar%2Fwww%2Fsite

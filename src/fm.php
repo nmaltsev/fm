@@ -1,5 +1,5 @@
 <?php
-define('VERSION','21.2024.01.03');
+define('VERSION','22.2024.02.15');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -44,8 +44,9 @@ input:focus{border-color:#b3b2be;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
 .files .skip-columns{grid-column:span 6;}
 .stick2top{position:sticky;background:#fff;top:0;}
-.files-panel{display:flex;flex:0 0 auto;background:#0071ce;color:#fff;padding:0.5rem;font-size:1rem;align-items:center;}
-.files-panel > a {margin:0 0 0 1rem;}
+.files-panel{display:flex;flex:0 0 auto;background:#0071ce;color:#fff;padding:.5rem;font-size:1rem;line-height:1.2rem;align-items:center;}
+.files-panel>a{margin:0 0 0 1rem;}
+.fm_ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 a{text-decoration:none;color:#0049fd;}
 a:hover,a:focus,a:active{text-decoration:underline;}
 a.resource:visited{color:var(--fucsia);}
@@ -81,7 +82,7 @@ if ($action == 'dir') {
     echo '<dir class="wrapper">';
     
     if ($files !== false) { // Show the list of files
-        echo '<header class="files-panel">', '<span>', htmlspecialchars($path), '</span>';
+        echo '<header class="files-panel">', '<span class="fm_ellipsis">', htmlspecialchars($path), '</span>';
         $newlink = '?action=new_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
         echo '<a class="v-btn _btn-a" href="',$newlink,'">New</a>';
         $newlink = '?action=upload_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
@@ -100,7 +101,7 @@ if ($action == 'dir') {
                     '<span class="skip-columns stick2top"></span></li>';
                 continue;
             }
-            echo '<a href="',$nav_link,'" class="resource">',$file,'</a>';
+            echo '<a href="',$nav_link,'" class="resource ',(is_dir($next_path) ? '__dir' : '__file'),'">',$file,'</a>';
             // change mode
             $nav_link = '?action=perm&path='.urlencode($next_path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
             $octal_perm = substr(sprintf('%o', fileperms($next_path)), -4);
@@ -136,7 +137,7 @@ if ($action == 'dir') {
         $mime_type = finfo_file($finfo, $path);
         // TODO edit button for SVG images
         echo '<header class="files-panel">', 
-            '<span>', htmlspecialchars($path), ' (', $mime_type, ')','</span>',
+            '<span class="fm_ellipsis">', htmlspecialchars($path), ' (', $mime_type, ')','</span>',
             '<a class="v-btn _btn-a" href="', $back_link, '">Back</a>',
         '</header>';
 
@@ -309,7 +310,24 @@ else if ($action == 'download') {
         http_response_code(404);
         die();
     }
-    // TODO create archives for directories
+    if (is_dir($path)) {
+        require_once('./mods/zip.php');
+        if (class_exists(ZipFile::class)) {
+            // TODO create an archive from a directory
+            // TODO check if '"' must be escaped -> download a directory containing '"' in the name
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="'.basename($path).'.zip"');
+            // echo "$path";
+            $zip = new ZipFile;
+            createZip($zip, $path.'/');
+            file_put_contents("php://output", $zip->file());
+            
+        }
+
+        die();
+    }
+    
+    // TODO use the fllowing for a file only:
     header('Content-Description: File Transfer');
     header('Content-Type: application/octet-stream');
     header('Content-Disposition: attachment; filename="' . basename($path) . '"');
