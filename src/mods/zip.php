@@ -1,4 +1,5 @@
 <?php
+namespace Utils;
 include_once('zip.lib.php');
 
 function getFileContent($path) {
@@ -22,7 +23,8 @@ function fileWrite($path, $data) {
 function createZip($zipArchive, $folder, $dir=''){
     if (is_dir($folder)) {
         if ($f = opendir($folder)) {
-            $resCount = 0;
+            $file_data = $zipArchive->getModTime($folder);
+            $zipArchive->addDir($dir, $file_data['file_mtime'], $file_data['file_mdate']);
             while (($file = readdir($f)) !== false) {
                 $resource = $folder.$file;
                 if ($file == '' || $file == '.' || $file == '..') {
@@ -30,18 +32,14 @@ function createZip($zipArchive, $folder, $dir=''){
                 }
                 if (is_file($resource)) {
                     $content = getFileContent($resource);
-                    $zipArchive->addFile($content, $dir.$file);
-                    $resCount++;
-                }
-                else if (is_dir($resource)) {
+                    $date = \Core\getSaveModTime($dir.$file);
+                    $zipArchive->addFile($content, $dir.$file, $date);
+                } else if (is_dir($resource)) {
+                    $file_data = $zipArchive->getModTime($resource);
                     createZip($zipArchive, $resource.'/', $dir.$file.'/');
-                    $resCount++;
+                    $zipArchive->addDir($resource, $file_data['file_mtime'], $file_data['file_mdate']);
                 }
             }
-            // TODO does not work properly
-            // if ($resCount < 1) {
-            //     $zipArchive->addEmpty($dir.$file);
-            // }
             closedir($f);
         } else {
             exit("Unable to open directory " . $folder);

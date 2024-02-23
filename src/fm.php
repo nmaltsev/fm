@@ -313,18 +313,17 @@ else if ($action === 'download') {
     }
     if (is_dir($path)) {
         require_once('./mods/zip.php');
-        if (class_exists(ZipFile::class)) {
+        if (class_exists(Core\ZipFile::class)) {
             // Create an archive from a directory
             header('Content-Type: application/octet-stream');
             header('Content-Disposition: attachment; filename="'.basename($path).'.zip"');
-            $zip = new ZipFile;
-            createZip($zip, $path.'/');
+            $zip = new Core\ZipFile;
+            Utils\createZip($zip, $path.'/');
             file_put_contents("php://output", $zip->file());
         }
         die();
     }
     
-    // TODO use the fllowing for a file only:
     header('Content-Description: File Transfer');
     header('Content-Type: application/octet-stream');
     header('Content-Disposition: attachment; filename="' . basename($path) . '"');

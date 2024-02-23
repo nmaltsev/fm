@@ -1,10 +1,15 @@
 <?php
+namespace Core;
+
+function getSaveModTime($path) {
+    // filemtime() may return false, but raises an error for non-existing files
+	return file_exists($path) ? filemtime($path) : null;
+}
+
 /**
  * Zip file creation class.
  * Makes zip files.
  *
- * @access  public
- * @package PhpMyAdmin
  * @see     Official ZIP file format: http://www.pkware.com/support/zip-app-note
  * @founded on 
  * https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_5_5_1/libraries/zip.lib.php 
@@ -69,14 +74,10 @@ class ZipFile
     /**
      * Converts an Unix timestamp to a four byte DOS date and time format (date
      * in high two bytes, time in low two bytes allowing magnitude comparison).
-     *
      * @param integer $unixtime the current Unix timestamp
-     *
      * @return integer the current date in a four byte DOS format
-     *
-     * @access private
      */
-    function unix2DosTime($unixtime = 0)
+    /*private*/ function unix2DosTime($unixtime = 0)
     {
         $timearray = ($unixtime == 0) ? getdate() : getdate($unixtime);
 
@@ -87,7 +88,7 @@ class ZipFile
             $timearray['hours']   = 0;
             $timearray['minutes'] = 0;
             $timearray['seconds'] = 0;
-        } // end if
+        }
 
         return (($timearray['year'] - 1980) << 25)
             | ($timearray['mon'] << 21)
@@ -95,7 +96,27 @@ class ZipFile
             | ($timearray['hours'] << 11)
             | ($timearray['minutes'] << 5)
             | ($timearray['seconds'] >> 1);
-    } // end of the 'unix2DosTime()' method
+    }
+
+    
+    /**
+	 * Get file/directory modification time
+	 *
+	 * If this is a newly created file/dir, we will set the time to 'now'
+	 *
+	 * @param	string	$path	path to file
+	 * @return	array	filemtime/filemdate
+	 */
+	public function getModTime($path)
+	{
+		
+		$date = getdate(getSaveModTime($path));
+
+		return array(
+			'file_mtime' => ($date['hours'] << 11) + ($date['minutes'] << 5) + $date['seconds'] / 2,
+			'file_mdate' => (($date['year'] - 1980) << 9) + ($date['mon'] << 5) + $date['mday']
+		);
+	}
 
 
     /**
@@ -104,12 +125,9 @@ class ZipFile
      * @param string  $data file contents
      * @param string  $name name of the file in the archive (may contains the path)
      * @param integer $time the current timestamp
-     *
-     * @access public
-     *
      * @return void
      */
-    function addFile($data, $name, $time = 0)
+    public function addFile($data, $name, $time = 0)
     {
         $name     = str_replace('\\', '/', $name);
 
@@ -170,49 +188,60 @@ class ZipFile
         // optional extra field, file comment goes here
         // save to central directory
         $this -> ctrl_dir[] = $cdrec;
-    } // end of the 'addFile()' method
-
-    function addEmpty($name, $time = 0)
-    {
-        $name     = str_replace('\\', '/', $name);
-
-        $hexdtime = pack('V', $this->unix2DosTime($time));
-
-        // now add to central directory record
-        $cdrec = "\x50\x4b\x01\x02";
-        $cdrec .= "\x00\x00";                // version made by
-        $cdrec .= "\x14\x00";                // version needed to extract
-        $cdrec .= "\x00\x00";                // gen purpose bit flag
-        $cdrec .= "\x08\x00";                // compression method
-        $cdrec .= $hexdtime;                 // last mod time & date
-        $cdrec .= pack('V', 0);           // crc32
-        $cdrec .= pack('V', 0);         // compressed filesize
-        $cdrec .= pack('V', 0);       // uncompressed filesize
-        $cdrec .= pack('v', strlen($name)); // length of filename
-        $cdrec .= pack('v', 0);             // extra field length
-        $cdrec .= pack('v', 0);             // file comment length
-        $cdrec .= pack('v', 0);             // disk number start
-        $cdrec .= pack('v', 0);             // internal file attributes
-        $cdrec .= pack('V', 32);            // external file attributes
-                                            // - 'archive' bit set
-
-        $cdrec .= pack('V', $this -> old_offset); // relative offset of local header
-        // $this -> old_offset += strlen($fr);
-
-        $cdrec .= $name;
-
-        // optional extra field, file comment goes here
-        // save to central directory
-        $this -> ctrl_dir[] = $cdrec;
     }
+
+    public function addDir($dir, $file_mtime, $file_mdate){
+		$dir = str_replace('\\', '/', $dir);
+
+		$fr = "\x50\x4b\x03\x04\x0a\x00\x00\x00\x00\x00"
+			.pack('v', $file_mtime)
+			.pack('v', $file_mdate)
+			.pack('V', 0) // crc32
+			.pack('V', 0) // compressed filesize
+			.pack('V', 0) // uncompressed filesize
+			.pack('v', strlen($dir)) // length of pathname
+			.pack('v', 0) // extra field length
+			.$dir
+			// below is "data descriptor" segment
+			.pack('V', 0) // crc32
+			.pack('V', 0) // compressed filesize
+			.pack('V', 0); // uncompressed filesize
+
+        if ($this->doWrite) {
+            echo $fr;
+        } else {                     // ... OR add this entry to array
+            $this->datasec[] = $fr;
+        }
+
+        $cdrec =
+			"\x50\x4b\x01\x02\x00\x00\x0a\x00\x00\x00\x00\x00"
+			.pack('v', $file_mtime)
+			.pack('v', $file_mdate)
+			.pack('V', 0) // crc32
+			.pack('V', 0) // compressed filesize
+			.pack('V', 0) // uncompressed filesize
+			.pack('v', strlen($dir)) // length of pathname
+			.pack('v', 0) // extra field length
+			.pack('v', 0) // file comment length
+			.pack('v', 0) // disk number start
+			.pack('v', 0) // internal file attributes
+			.pack('V', 16) // external file attributes - 'directory' bit set
+			.pack('V', $this->old_offset) // relative offset of local header
+			.$dir;
+
+		// $this->offset = self::strlen($fr);
+		// $this->entries++;
+
+
+        $this->old_offset += strlen($fr);
+        $this->ctrl_dir[] = $cdrec;
+	}
 
 
     /**
      * Echo central dir if ->doWrite==true, else build string to return
      *
      * @return string  if ->doWrite {empty string} else the ZIP file contents
-     *
-     * @access public
      */
     function file()
     {
@@ -232,6 +261,6 @@ class ZipFile
             $data = implode('', $this -> datasec);
             return $data . $header;
         }
-    } // end of the 'file()' method
+    }
 
-} // end of the 'ZipFile' class
+}
