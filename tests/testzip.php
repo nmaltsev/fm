@@ -1,5 +1,5 @@
 <?php
-include_once('zip.php');
+include_once('./src/mods/zip.php');
 ## Creating a recursive ZIP archive from a directory for streaming
 $zip = new ZipFile;
 createZip($zip, '/home/nmaltsev/Documents/dev/nm_helsinki/src/');

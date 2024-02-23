@@ -17,6 +17,7 @@ function layoutHeader() {
     <meta charset="utf-8"/>
         <meta name="robots" content="noindex, nofollow">
         <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+        <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
         <style>
         :root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}
         body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
@@ -302,10 +303,10 @@ else if ($action === 'forward2') {
     die();
 }
 
-else if ($action == 'download') {
-    if (!preg_match('/^[^.][-a-z0-9_.,\s\/@\(\)\[\]]+$/i', $path)) {
-        die('Invalid file name! ['.$path.']');
-    }
+else if ($action === 'download') {
+    // if (!preg_match('/^[^.][-a-z0-9_.,\s\/@\(\)\[\]]+$/i', $path)) {
+    //     die('Invalid file name! ['.$path.']');
+    // }
     if (!file_exists($path)) {
         http_response_code(404);
         die();
@@ -313,17 +314,13 @@ else if ($action == 'download') {
     if (is_dir($path)) {
         require_once('./mods/zip.php');
         if (class_exists(ZipFile::class)) {
-            // TODO create an archive from a directory
-            // TODO check if '"' must be escaped -> download a directory containing '"' in the name
+            // Create an archive from a directory
             header('Content-Type: application/octet-stream');
             header('Content-Disposition: attachment; filename="'.basename($path).'.zip"');
-            // echo "$path";
             $zip = new ZipFile;
             createZip($zip, $path.'/');
             file_put_contents("php://output", $zip->file());
-            
         }
-
         die();
     }
     
