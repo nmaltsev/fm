@@ -1,5 +1,5 @@
 <?php
-define('VERSION','22.2024.02.15');
+define('VERSION','23.2024.02.26');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -45,14 +45,22 @@ input:focus{border-color:#b3b2be;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
 .files .skip-columns{grid-column:span 6;}
 .stick2top{position:sticky;background:#fff;top:0;}
-.files-panel{display:flex;flex:0 0 auto;background:#0071ce;color:#fff;padding:.5rem;font-size:1rem;line-height:1.2rem;align-items:center;}
+.files-panel{color:#fff;padding:.5rem;font-size:1rem;line-height:1.2rem;align-items:center;}
 .files-panel>a{margin:0 0 0 1rem;}
 .fm_ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 a{text-decoration:none;color:#0049fd;}
 a:hover,a:focus,a:active{text-decoration:underline;}
 a.resource:visited{color:var(--fucsia);}
-.f-min-content{flex:0 0 auto;}
-.f-max-content{flex:1 1 auto;}
+.d-flex,.f-col,.f-row{display:flex;}
+.d-flex.__column,.f-col{flex-direction:column;}
+.f-row{align-items:baseline;}
+.f-min{flex:0 0 auto;}
+.f-max{flex:1 1 auto;}
+.f-aitems-cntr{align-items:center;}
+.f-cjustify-spbtw{justify-content:space-between;}
+.f-cjustify-cntr{justify-content:center;}
+.cpanel{background:var(--blue1);}
+.cpanel a{color:#fff;}
 .f-wrapper{display:flex;overflow:hidden;}
 .__primary-transparent {
 	background-color: #fff;
@@ -83,7 +91,7 @@ if ($action == 'dir') {
     echo '<dir class="wrapper">';
     
     if ($files !== false) { // Show the list of files
-        echo '<header class="files-panel">', '<span class="fm_ellipsis">', htmlspecialchars($path), '</span>';
+        echo '<header class="files-panel f-row f-min cpanel">', '<span class="fm_ellipsis">', htmlspecialchars($path), '</span>';
         $newlink = '?action=new_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
         echo '<a class="v-btn _btn-a" href="',$newlink,'">New</a>';
         $newlink = '?action=upload_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
@@ -137,7 +145,7 @@ if ($action == 'dir') {
         $finfo = finfo_open(FILEINFO_MIME);
         $mime_type = finfo_file($finfo, $path);
         // TODO edit button for SVG images
-        echo '<header class="files-panel">', 
+        echo '<header class="files-panel f-min f-row cpanel">', 
             '<span class="fm_ellipsis">', htmlspecialchars($path), ' (', $mime_type, ')','</span>',
             '<a class="v-btn _btn-a" href="', $back_link, '">Back</a>',
         '</header>';
@@ -147,7 +155,7 @@ if ($action == 'dir') {
             if (strpos($mime_type, 'video/') === 0) {
                 $next_path = '?action=forward2&path='.urlencode($path);
                 echo '<div class="f-wrapper">',
-                        '<video playsinline loop autoplay preload=auto controls class="f-max-content" style="background:#111;">',
+                        '<video playsinline loop autoplay preload=auto controls class="f-max" style="background:#111;">',
                             '<source src="',$next_path,'" type="',$mime_type,'"/>',
                         '</video>',
                     '</div>';
@@ -155,12 +163,12 @@ if ($action == 'dir') {
             }
             if (strpos($mime_type, 'application/pdf') === 0) {
                 $next_path = '?action=forward2&path='.urlencode($path);
-                echo '<iframe class="f-max-content" src="',$next_path,'"/>';
+                echo '<iframe class="f-max" src="',$next_path,'"/>';
                 return;
             }
             if (strpos($mime_type, 'audio/') === 0) {
                 $next_path = '?action=forward2&path='.urlencode($path);
-                echo '<div class="f-wrapper f-max-content centered"><audio controls autoplay style="width:100%">',
+                echo '<div class="f-wrapper f-max centered"><audio controls autoplay style="width:100%">',
                     '<source src="',$next_path,'" type="',$mime_type,'"/>',
                 '</audio></div>';
                 return;
@@ -227,10 +235,10 @@ if ($action == 'dir') {
             }
         }
         $handler='?action=update';
-        echo '<form class="f-max-content" method="POST" action="', $handler, '" style="margin:0;display:flex;flex-direction:column;">',
+        echo '<form class="f-max" method="POST" action="', $handler, '" style="margin:0;display:flex;flex-direction:column;">',
             '<input type="hidden" name="path" value="',htmlspecialchars($path),'"/>',
             '<input type="hidden" name="redirect" value="',htmlspecialchars($back_link),'"/>',
-        '<textarea class="f-max-content" name="content" style="resize:none;box-sizing:border-box;padding:.3rem;border:none;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">';
+        '<textarea class="f-max" name="content" style="resize:none;box-sizing:border-box;padding:.3rem;border:none;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">';
         //  TODO handle exception
         $fh = fopen($path, 'r');
         while ($line = fgets($fh)) {
@@ -238,9 +246,12 @@ if ($action == 'dir') {
         }
         fclose($fh);
         echo '</textarea>';
-        echo '<div class="f-min-content" style="display:flex;padding:.5rem;background:var(--blue1);">';
+        echo '<div class="f-min f-row f-aitems-cntr cpanel" style="padding:.5rem;">';
         echo '<button type="submit" class="__primary-transparent">Submit</button>';
         echo '<button type="reset" class="_btn-a">Reset</button>';
+        if (strpos($mime_type, 'text/html') === 0) {
+            echo '<a href="','proxy.php?url=',urldecode($path),'" target="_blank">View via proxy</a>';
+        }
         echo '</div>';
         echo '</form>';
     }
