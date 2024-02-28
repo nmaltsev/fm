@@ -22,7 +22,7 @@ function layoutHeader() {
         :root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}
         body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
 .v-btn,button{cursor:pointer;border:none;padding:.5rem 1rem;transition:background-color .2s,color .2s,box-shadow .2s;}
-._btn-a{border:1px solid #fff;padding:.3rem .5rem;color:#fff;background:transparent;}
+._btn-a{border:1px solid #fff;color:#fff;background:transparent;}
 ._btn-a:hover,
 ._btn-a:focus{text-decoration:none;background:#fff;color:#333;}
 ._btn-a:active{outline:1px solid #fff;outline-offset:1px;}
@@ -39,7 +39,7 @@ input:focus{border-color:#b3b2be;}
 .centered,.__middle{justify-content:center;align-items:center;text-align:center;}
 .files{list-style:none;margin:0;display:grid;grid-gap:0;white-space:nowrap;flex:1 1 auto;overflow:auto;padding:0 0 .5rem 0;
     grid-auto-rows:min-content;font-size:.9rem;line-height:1.2rem;
-    grid-template-columns: min-content min-content min-content min-content min-content min-content auto;}
+    grid-template-columns:repeat(6, min-content) auto;}
 .files>li{display:contents;}
 .files>li:hover > span, .files>li:hover > a{background:#ddf4ffd6;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
