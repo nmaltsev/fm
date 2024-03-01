@@ -462,18 +462,17 @@ function* readFile(file) {
     }
 };
 async function uploadHandler(event){
-    console.log('OnSubmit');
-    console.dir(event);
     event.preventDefault();
+    event.stopPropagation();
     const file = document.getElementById('file').files[0];
-    const basepath=document.querySelector('input[name=path]').value;
+    const basepath = document.querySelector('input[name=path]').value;
     console.log('F', file);
-    // TODO does not work
+
     for (const chunk of readFile(file)) { 
         console.log('Chunk:')
         console.dir(chunk);
         
-        const response = await fetch('?action=uploadaction', {body: chunk,method: 'post'})
+        const response = await fetch('?action=uploadaction', {method:'POST',body:chunk})
             .then(function(response){
                 if (response.status >= 400 && response.status < 600) {
                     throw new Error('Bad response from server');
@@ -487,7 +486,9 @@ async function uploadHandler(event){
         console.log(response.ok);
         console.dir(response);
         const content = await response.json().catch((error) => {
-            console.log('Parse error: ', error)
+            console.log('Parse error1:');
+            console.dir(error);
+            return {status:'error',body:error}
         });
         console.log('Resp:', content);
     }; 
@@ -496,7 +497,7 @@ async function uploadHandler(event){
     // Must be an absolute path
     destinationData.append('basepath', basepath); 
     
-    const rawResponse = await (fetch('?action=uploadaction', {method: 'POST',body: destinationData})
+    const finalResponse = await (fetch('?action=uploadaction', {method:'POST',body:destinationData})
         .then(function(response){
             if (response.status >= 400 && response.status < 600) {
                 throw new Error('Bad response from server');
@@ -506,10 +507,12 @@ async function uploadHandler(event){
         .catch((error) => {
             console.log('Err: ', error)
         }));
-    console.log('Final req status:', rawResponse.ok);
-    console.dir(rawResponse);
-    const content = await (rawResponse.json().catch((error) => {
-        console.log('Parse error: ', error)
+    console.log('Final req status:', finalResponse.ok);
+    console.dir(finalResponse);
+    const content = await (finalResponse.json().catch((error) => {
+        console.log('Parse error2:')
+        console.dir(error);
+        return {status:'error',body:error}
     }));
     console.log('Final', content);
     if (content?.status == 'error') {
