@@ -1,5 +1,5 @@
 <?php
-define('VERSION','23.2024.02.26');
+define('VERSION','24.2024.03.06');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -347,9 +347,32 @@ else if ($action === 'download') {
     die();
 }
 else if ($action == 'delete') {
-    $is_success = !is_dir($path) 
-        ? @unlink($path)
-        : @rmdir($path);
+    function removeDir(string $source): bool {
+        if (empty($source) || file_exists($source) === false) {
+            return false;
+        }
+    
+        if (is_file($source) || is_link($source)) {
+            return @unlink($source);
+        }
+        $it = new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS);
+        $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
+        $status = true;
+        // $file as SplFileInfo
+        foreach ($files as $file) {
+            if ($file->isDir() && !$file->isLink()){
+                $op_status = @rmdir($file->getPathname());
+            } else {
+                $op_status = @unlink($file->getPathname());
+            }
+            if (!$op_status) $status = false;
+        }
+        $op_status = @rmdir($source);
+        if (!$op_status) $status = false;
+        return $status;
+    }
+
+    $is_success = removeDir($path);
     
     if (!$is_success) {
         $e = error_get_last();
