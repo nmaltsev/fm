@@ -39,11 +39,11 @@ input:focus{border-color:#b3b2be;}
 .centered,.__middle{justify-content:center;align-items:center;text-align:center;}
 .files{list-style:none;margin:0;display:grid;grid-gap:0;white-space:nowrap;flex:1 1 auto;overflow:auto;padding:0 0 .5rem 0;
     grid-auto-rows:min-content;font-size:.9rem;line-height:1.2rem;
-    grid-template-columns:repeat(6, min-content) auto;}
+    grid-template-columns:repeat(7, min-content) auto;}
 .files>li{display:contents;}
-.files>li:hover > span, .files>li:hover > a{background:#ddf4ffd6;}
+.files>li:hover>span, .files>li:hover>i, .files>li:hover>a{background:#ddf4ffd6;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
-.files .skip-columns{grid-column:span 6;}
+.files .skip-columns{grid-column:span 7;}
 .stick2top{position:sticky;background:#fff;top:0;}
 .files-panel{color:#fff;padding:.5rem;font-size:1rem;line-height:1.2rem;align-items:center;}
 .files-panel>a{margin:0 0 0 1rem;}
@@ -80,6 +80,14 @@ function layoutTail() {
 }
 
 if ($action == 'dir') {
+    function endsWithBeforePHP8( $haystack, $needle ) {
+        $length = strlen( $needle );
+        if( !$length ) {
+            return true;
+        }
+        return substr( $haystack, -$length ) === $needle;
+    }
+    
     if (!is_readable($path)) {
         $redirect = '?action=error&message=' . urlencode('Read permission denied to '.$path) . '&path='.urlencode('?action=dir&path='.urlencode(dirname($path)));
         header('Location: '.$redirect);
@@ -136,7 +144,7 @@ if ($action == 'dir') {
 
             // download resource
             $nav_link = '?action=download&path='.urlencode($next_path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
-            echo '<a href="',$nav_link,'" title="Download">Download</a></li>';
+            echo '<a href="',$nav_link,'" title="Download">Download</a><i></i></li>';
         }
         echo '</ol>';
     } else {
@@ -249,7 +257,7 @@ if ($action == 'dir') {
         echo '<div class="f-min f-row f-aitems-cntr cpanel" style="padding:.5rem;">';
         echo '<button type="submit" class="__primary-transparent">Submit</button>';
         echo '<button type="reset" class="_btn-a">Reset</button>';
-        if (strpos($mime_type, 'text/html') === 0) {
+        if (strpos($mime_type, 'text/html') === 0 || endsWithBeforePHP8($path, '.html')) {
             echo '<a href="','proxy.php?url=',urldecode($path),'" target="_blank">View via proxy</a>';
         }
         echo '</div>';
