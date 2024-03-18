@@ -258,7 +258,9 @@ if ($action == 'dir') {
         echo '<button type="submit" class="__primary-transparent">Submit</button>';
         echo '<button type="reset" class="_btn-a">Reset</button>';
         if (strpos($mime_type, 'text/html') === 0 || endsWithBeforePHP8($path, '.html')) {
-            echo '<a href="','proxy.php?url=',urldecode($path),'" target="_blank">View via proxy</a>';
+            echo '<a href="','proxy.php?url=',urlencode($path),'" target="_blank">View via proxy</a>';
+            echo '<!--', $path, '-->';
+            echo '<!--', urlencode($path), '-->';
         }
         echo '</div>';
         echo '</form>';

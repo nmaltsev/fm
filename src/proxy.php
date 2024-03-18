@@ -1,6 +1,7 @@
 <?php
+// Don't needed in urldecoding
 $url = $_REQUEST['url'];
-$url = urldecode($url);
+
 define('BASE_URL', getenv('PROXY_BASE_URL') ?: '');
 // php -S localhost:9097
 $origin = null;
@@ -16,11 +17,14 @@ if (!preg_match("`https?\://`i", $url)) {
         // $content = preg_replace("/some-smart-regex-here/i", "$1 or $2 smart replaces", $content);
         echo $content;
         die();
+    } else {
+        // For debugging
+        echo '<pre>', $url, '<pre>';
     }
     die('Not a URL');
 }
 // TODO proxy request
-$parts = explode("/", $url, 4);
+$parts = explode('/', $url, 4);
 $origin = isset($parts[2]) ? $parts[2] : null; 
 
 $ch = curl_init($url);
