@@ -70,6 +70,7 @@ a.resource:visited{color:var(--fucsia);}
 .__primary-transparent:focus {
 	background-color: #f1f1f1;
 }
+.mb1{margin-bottom:1rem;}
 .dialog{width:var(--dialog-width);}
         </style>
     </head>
@@ -418,8 +419,8 @@ else if ($action == 'error') {
     echo layoutHeader();
     echo '<dir class="wrapper __middle">';
     echo '<dir>';
-    echo '<h3>' . htmlspecialchars($message) . '</h3>';
-    echo '<a href="' . $path . '">Back</a>';
+    echo '<h3>', htmlspecialchars($message), '</h3>';
+    echo '<a href="', $path, '">Back</a>';
     echo '</dir>';
     echo layoutTail();
 }
@@ -468,7 +469,7 @@ else if ($action == 'upload_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
     echo '<dir class="wrapper __middle">',
-        '<form onSubmit="uploadHandler(event)" method="POST" class="dialog">',
+        '<form onSubmit="uploadHandler(event)" method="POST" class="dialog mb1">',
             '<input type="hidden" name="redirect" value="',$redirect,'"/>',
             '<input type="hidden" name="path" value="',$path,'"/>',
             '<label><h4>Select a File to Upload:</h4>',
@@ -477,21 +478,22 @@ else if ($action == 'upload_form') {
             '<button type="submit" class="__b-primary">Upload</button>',
             '<button type="reset">Reset</button>',
             '<a href="', $redirect, '">Back</a>',
-        '</form>';
+        '</form>',
+        '<div id="progres"></div>';
     echo '<script>';
 echo "
 const chunk_size = 512*1024; /* 1048570 1MB chunk size*/
 function* readFile(file) {
     const filesize = file.size;
     const filename = file.name;
-    let pos = 0;
+    let pos = 0, chunk;
     while(pos < filesize) {
-        let chunk = file.slice(pos, pos+chunk_size);
+        chunk = file.slice(pos, pos+chunk_size);
         pos += chunk_size;
         const formData = new FormData();
         formData.append('chunk', chunk);
         formData.append('filename', filename);
-        yield formData;
+        yield [formData, pos];
     }
 };
 async function uploadHandler(event){
@@ -499,9 +501,12 @@ async function uploadHandler(event){
     event.stopPropagation();
     const file = document.getElementById('file').files[0];
     const basepath = document.querySelector('input[name=path]').value;
+    const progresNode = document.getElementById('progres');
     console.log('F', file);
 
-    for (const chunk of readFile(file)) { 
+    progresNode.textContent = '0 / ' + file.size;
+
+    for (const [chunk, bytes] of readFile(file)) { 
         console.log('Chunk:')
         console.dir(chunk);
         
@@ -518,6 +523,7 @@ async function uploadHandler(event){
             });
         console.log(response.ok);
         console.dir(response);
+        progresNode.textContent = bytes + ' / ' + file.size;
         const content = await response.json().catch((error) => {
             console.log('Parse error1:');
             console.dir(error);
