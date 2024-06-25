@@ -90,7 +90,8 @@ if ($action == 'dir') {
     }
     
     if (!is_readable($path)) {
-        $redirect = '?action=error&message=' . urlencode('Read permission denied to '.$path) . '&path='.urlencode('?action=dir&path='.urlencode(dirname($path)));
+        $referer = $_SERVER['HTTP_REFERER'];
+        $redirect = '?action=error&message=' . urlencode('Read permission denied to '.$path) . '&path='.urlencode('?action=dir&path=' . urlencode($referer));
         header('Location: '.$redirect);
         return;
     }
@@ -122,13 +123,13 @@ if ($action == 'dir') {
             echo '<a href="',$nav_link,'" class="resource ',(is_dir($next_path) ? '__dir' : '__file'),'">',$file,'</a>';
             // change mode
             $nav_link = '?action=perm&path='.urlencode($next_path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
-            $octal_perm = substr(sprintf('%o', fileperms($next_path)), -4);
+            $octal_perm = substr(sprintf('%o', @fileperms($next_path)), -4);
             // TODO use the folowing link to get a type of resources: file, dir, symlink and etc
             // TODO use settings to choose the prefered permission format `-rw-r--r--` or `0777` 
             // TODO show `-rw-r--r--` in a tooltip
             // https://phpdoctest.github.io/en/function.fileperms.html
             echo '<a href="',$nav_link,'">',$octal_perm,'</a>';
-            $file_size = filesize($next_path);
+            $file_size = @filesize($next_path);
             echo '<span title="', $file_size, ' bytes">', intword($file_size), '</span>';
 
             // TODO `$diff = time() - filemtime($file);`
