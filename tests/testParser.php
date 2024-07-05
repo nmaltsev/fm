@@ -1,37 +1,53 @@
 <?php
-function findAttribute($line, $keyword) {
+function findAttribute($line, $keyword1, $keyword2) {
     $i = 0;
     $max = strlen($line);
-    $key_len = strlen($keyword);
+    $key1_len = strlen($keyword1);
+    $key2_len = strlen($keyword2);
     $st = $i;
 
     while($i < $max) {
-        // TODO find the nearest keyword of two
-        $pos = strpos($line, $keyword, $i);
-        if ($pos === FALSE) {
+        // Find the nearest keyword of two
+        $pos1 = strpos($line, $keyword1, $i);
+        $pos2 = strpos($line, $keyword2, $i);
+        
+        if ($pos1 === FALSE && $pos2 === FALSE) {
             break;
-        } else {
-            $i = $pos + $key_len;
-            while (($line[$i] === ' ' || $line[$i] === '=') && $i < $max) $i++;
-            $start = $i++;
-            $next = $line[$start];
-            if ($next === '"' || $next === '\'') $start++;
-            
-            while($i < $max && (
-                $next === '"' 
-                    ? ($line[$i] !== '"')
-                    : ($next === '\''
-                        ? $line[$i] !== '\''
-                        : ($line[$i] !== '/' && $line[$i] !== ' ')
-                    )
-            )) $i++;
-
-            $value = substr($line, $start, $i - $start);
-
-            echo 'F ', substr($line, $st, $start - $st),  "\n";
-            echo 'A ', $value, "\n";
-            $st = $i;
         }
+
+        if ($pos1 === FALSE) {
+            $pos = $pos2;
+            $key_len = $key2_len;
+        }
+        else if ($pos2 === FALSE) {
+            $pos = $pos1;
+            $key_len = $key1_len;
+        } else {
+            $pos = $pos1 < $pos2 ? $pos1 : $pos2;
+            $key_len = $pos1 < $pos2 ? $key1_len : $key2_len;
+        }
+        
+        $i = $pos + $key_len;
+        while (($line[$i] === ' ' || $line[$i] === '=') && $i < $max) $i++;
+        $start = $i++;
+        $next = $line[$start];
+        if ($next === '"' || $next === '\'') $start++;
+        
+        while($i < $max && (
+            $next === '"' 
+                ? ($line[$i] !== '"')
+                : ($next === '\''
+                    ? $line[$i] !== '\''
+                    : ($line[$i] !== '/' && $line[$i] !== ' ')
+                )
+        )) $i++;
+
+        $value = substr($line, $start, $i - $start);
+
+        echo 'F ', substr($line, $st, $start - $st),  "\n";
+        // TODO use resolvePath
+        echo 'A ', $value, "\n";
+        $st = $i;
     }
     if ($i < $max) {
         echo 'Final ', substr($line, $i),  "\n";
@@ -47,7 +63,7 @@ function resolvePath($path, $referer, $origin=null) {
     /*
         start with '//' or 'http' -> with a domain name
         starts with '/' -> an absolute path
-        starts with './' or aother symbol -> a relative path
+        starts with './' or another symbol -> a relative path
     */
 }
 
@@ -67,4 +83,4 @@ $code = '
     </body>
 </html>
 ';
-findAttribute($code, 'src');
+findAttribute($code, 'src', 'href');
