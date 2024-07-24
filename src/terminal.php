@@ -3,36 +3,53 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
+define('VERSION','2.2024.07.22');
 
-function getfrom($array, $key, $default) {
+function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
 }
 
-$action=getfrom($_GET, 'action', '');
+$action=getFrom($_GET, 'action', '');
+session_start();
 
 if ($action=='form') {
     layout_head();
-    $writeinlog = isset($_POST['writeinlog']) ? $_POST['writeinlog'] == 'on' : false;
-    echo '<h1>Non-interactive shell</h1>';
+    $command = '';
+
+    if (isset($_SESSION['command'])){
+        $command = $_SESSION['command'];
+        unset($_SESSION['command']);
+        session_destroy();
+    } else if(isset($_POST['command'])){
+        $command = $_POST['command'];
+    } 
+    
+    echo '<a href="?action=form">Home</a>';
     echo '<a href="?action=list_background">Background tasks</a>';
     echo '<a href="?action=list_jobs">Background jobs</a>';
-    echo '<form action="?action=form" method="POST">';
-    echo '<input name="command" autofocus required value="', htmlspecialchars(getfrom($_POST, 'command', '')), '"/>';
-    echo '<label>',
-        '<input type="checkbox" name="writeinlog" id="dd" ', 
-        ($writeinlog ? 'checked' : ''),
-        '/>',
-        '&nbsp;Write in log</label>';
-    echo '<button type="submit">Submit</button>';
-    echo '</form>';
-
+    echo '<br><form action="?action=form" method="POST">',
+        '<input name="command" autofocus required value="', htmlspecialchars($command), '"/>',
+        '<button type="submit">Submit</button>',
+    '</form>';
+    
     if (isset($_POST['command'])) {
+        layout_tail();
         $user_command = $_POST['command'];
-        execute_user_command($user_command, $writeinlog);
-        // _execute_user_command($user_command, $writeinlog);
+        execute_user_command($user_command);
     }
+    else if (isset($_GET['pid'])) {
+        // TODO long poling
+        echo '<p>PID: ',$_GET['pid'],'</p>';
+        echo '<textarea id="log"></textarea>';
+        echo '<script>
+window.onload = function(){        
+    let start=0;
+    console.log("TODO");
+};
 
-    layout_tail();
+</script>';
+        layout_tail();
+    }
 }
 else if ($action=='list_background') {
     layout_head();
@@ -44,8 +61,45 @@ else if ($action=='list_jobs') {
     list_background('jobs');
     layout_tail();
 }
+else if ($action=='read') {
+    $path = getFrom($_GET, 'r', null);
+    $from = intval(getFrom($_GET, 'f', null));
+    $to = intval(getFrom($_GET, 't', null));
+    $content = readFilePart($path, $from, $to);
 
+    echo json_encode([
+        'out' => $content,
+    ]);
+}
 
+function readFilePart($path, $from=0, $to=0) {
+    $fileSize = filesize($path);
+    $from = min($from, $fileSize);
+    $out = '';
+    $fp = fopen($path, 'r');
+
+    if ($to - $from > 0) {
+        fseek($fp, $from);
+        $out = fread($fp, $to - $from);
+    } else {
+        $size = 256;
+    
+        while(!feof($fp)) {
+            fseek($fp, $from);
+            $data = fread($fp, $size);  // assumes lines are < $size characters
+            $pos = strpos($data, "\n");
+            if ($pos !== false) {
+                $out .= substr($data, 0, $pos);
+                break;
+            } else {
+                $out .= $data;
+            }
+            $from += $size;
+        }
+    }
+    fclose($fp);
+    return $out;
+}
 
 function layout_head() {
     echo '<!DOCTYPE html>';
@@ -80,33 +134,38 @@ function list_background($command) {
     // print_r($output);
 }
 
-function execute_user_command($command, $writeinlog) {
-    if ($writeinlog) {
-        $cmd_id = rand(5, 1500);
-        $log_path = '/tmp/out.'.$cmd_id.'.log';
-        $execstring = /*'nohup ' .*/ $command . ' 2>>' . $log_path . ' 1>>' . $log_path .' & echo $!';
-        $pid = exec($execstring, $output, $code);
-        echo 'Code: ', $code, '<br>';
+function execute_user_command($command) {
+    $cmd_id = rand(5, 1500);
+    $log_path = '/tmp/out.'.$cmd_id.'.log';
 
+    $execstring = $command . ' < /dev/null > ' . $log_path . '2>&1 & echo $!';
+    $pid = exec($execstring, $output, $code);
+
+    if (0) {
+        echo 'Code: ', $code, '<br>';
         echo 'PID: ', $pid, '<br>';
         echo "Logfile: $log_path <br>";
-        
-        sleep(1);
-        $is_running =  posix_getpgid($pid); 
-        echo 'Executing: ', ($is_running ? 'Yes' : 'No'), '<br>';
-        
-        $fh = fopen($log_path, 'r');
-        echo '<pre>';
-        while ($line = fgets($fh)) {
-            echo htmlspecialchars($line);
-        }
-        fclose($fh);
-        echo '</pre>';
-        if (!$is_running) unlink($log_path);
-    } else {
-        // execute_cmd($command);
-        execute_user_command3($command . ' 2>&1 &');
     }
+    
+    symlink($log_path, '/tmp/pid.'.$pid.'.log');
+    session_start();
+    $_SESSION['command'] = $command;
+    header('Location: '.'?action=form&tt&pid='.$pid);
+    
+    // sleep(1);
+    // $is_running =  posix_getpgid($pid); 
+    // echo 'Executing: ', ($is_running ? 'Yes' : 'No'), '<br>';
+    
+    // $fh = fopen($log_path, 'r');
+    // echo '<pre>';
+    // while ($line = fgets($fh)) {
+    //     echo htmlspecialchars($line);
+    // }
+    // fclose($fh);
+    // echo '</pre>';
+    // if (!$is_running) unlink($log_path);
+
+    // 
 }
 function execute_cmd($cmd){
     $execstring = $cmd . ' 2>&1 &';

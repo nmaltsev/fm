@@ -1,5 +1,5 @@
 <?php
-define('VERSION','24.2024.03.06');
+define('VERSION','25.2024.07.24');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -437,16 +437,16 @@ else if ($action == 'init') {
 else if ($action == 'saveas_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
-    echo '<dir class="wrapper __middle">';
-    echo '<form method="POST" action="?action=saveas_handler">';
-    echo    '<p>Save file <b>'.htmlspecialchars($path).'</b> as:</p>';
-    echo    '<input type="hidden" name="redirect" value="'.$redirect.'"/>';
-    echo    '<input type="hidden" name="path" value="'.urlencode($path).'"/>';
-    echo    '<input style="display:block;width:100%;" type="text" name="next_path" value="' . htmlspecialchars($path) . '" required autofocus/>';
-    echo    '<a href="' . $redirect . '">Cancel</a>';
-    echo    '<button type="reset">Reset</button>';
-    echo    '<button type="submit">Save</button>';
-    echo '</form>';
+    echo '<dir class="wrapper __middle">',
+            '<form method="POST" action="?action=saveas_handler" class="dialog">',
+                '<p>Save file <b>',htmlspecialchars($path),'</b> as:</p>',
+                '<input type="hidden" name="redirect" value="',$redirect,'"/>',
+                '<input type="hidden" name="path" value="',urlencode($path),'"/>',
+                '<input class="target-input" type="text" name="next_path" value="',htmlspecialchars($path),'" required autofocus/>',
+                '<button type="submit" class="__b-primary">Save</button>',
+                '<button type="reset">Reset</button>',
+                '<a href="',$redirect,'">Cancel</a>',
+        '</form></div>';
     echo layoutTail();
 }
 else if ($action == 'new_form') {
@@ -454,9 +454,9 @@ else if ($action == 'new_form') {
     echo layoutHeader();
     echo '<dir class="wrapper __middle">',
             '<form method="POST" action="?action=new_handler" class="dialog">',
-                '<p><b>Create new:</b> ',
-                    '<label><input type="radio" name="type" value="file"> file</label>',
-                    '<label><input type="radio" name="type" value="dir" checked> directory</label>',
+                '<p>Create new: ',
+                    '<label><input type="radio" name="type" value="file"> <b>file</b></label>',
+                    '<label><input type="radio" name="type" value="dir" checked> <b>directory</b></label>',
                 '</p>',
                 '<input type="hidden" name="redirect" value="', $redirect,'"/>',
                 '<input class="target-input" type="text" name="path" value="', htmlspecialchars($path), '/" required autofocus/>',
