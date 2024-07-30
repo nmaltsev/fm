@@ -81,12 +81,12 @@ function layoutTail() {
 }
 
 if ($action == 'dir') {
-    function endsWithBeforePHP8( $haystack, $needle ) {
-        $length = strlen( $needle );
-        if( !$length ) {
+    function endsWithBeforePHP8($haystack, $needle) {
+        $length = strlen($needle);
+        if(!$length) {
             return true;
         }
-        return substr( $haystack, -$length ) === $needle;
+        return substr($haystack, -$length) === $needle;
     }
     
     if (!is_readable($path)) {
@@ -107,19 +107,16 @@ if ($action == 'dir') {
         $newlink = '?action=upload_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
         echo '<a class="v-btn _btn-a" href="',$newlink,'">Upload</a>', '</header>';
         echo '<ol class="files">';
+        if ($path !== '/') {
+            echo '<li><a class="stick2top" href="','?action=dir&path='.urlencode(dirname($path)),'">..</a>',
+            '<span class="skip-columns stick2top"></span></li>';
+        }
+            
         foreach($files as $i => $file) {
-            if ($file == '.') continue;
-            $next_path = ($file == '..') 
-                ? dirname($path) 
-                : $path . ($path !== '/' ? '/' : '') . $file;
+            if ($file == '.' || $file == '..') continue;
+            $next_path = $path . ($path !== '/' ? '/' : '') . $file;
             $nav_link = '?action=dir&path='.urlencode($next_path);
             echo '<li>';
-            
-            if ($file == '..') {
-                echo '<a class="stick2top" href="',$nav_link,'">',$file,'</a>',
-                    '<span class="skip-columns stick2top"></span></li>';
-                continue;
-            }
             echo '<a href="',$nav_link,'" class="resource ',(is_dir($next_path) ? '__dir' : '__file'),'">',$file,'</a>';
             // change mode
             $nav_link = '?action=perm&path='.urlencode($next_path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
