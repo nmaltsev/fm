@@ -1,4 +1,5 @@
 <?php
+// TODO use generators https://www.php.net/manual/en/language.generators.overview.php
 function findAttribute($line, $keyword1, $keyword2) {
     $i = 0;
     $max = strlen($line);
