@@ -52,17 +52,16 @@ window.addEventListener("error", function(e) {
         const originalLink = e.target.getAttribute("src");
         //// const nextLink = new URL(originalLink, location.href);
         const absResourcePath = normalisePath(originalLink,resourcePath);
-        
-        console.log("Error `%s` %s,%s,%s", e.target.src, originalLink, resourcePath, absResourcePath);
-
+        console.log("Image loading error `%s` %s,%s,%s", e.target.src, originalLink, resourcePath, absResourcePath);
         e.target.src="?url="+encodeURIComponent(absResourcePath);
         e.target.__fixed=1;
     }
-    else if (tagName.toLowerCase() === "link") {
+    else if (tagName.toLowerCase() === "link") { // Does not work in FF, works buggy in Edge
         const originalLink = e.target.getAttribute("href");
         const absResourcePath = normalisePath(originalLink,resourcePath);
-        console.log("Error2 `%s` %s,%s,%s", e.target.href, originalLink, resourcePath, absResourcePath);
+        console.log("Style loading error `%s` %s,%s,%s", e.target.href, originalLink, resourcePath, absResourcePath);
         e.target.href="?url="+encodeURIComponent(absResourcePath);
+        // e.target.setAttribute("href","?url="+encodeURIComponent(absResourcePath));
         e.target.__fixed=1;
     } 
     else {
@@ -127,7 +126,7 @@ function get_mime_type($path) {
         return 'text/css';
     } else {
         $finfo = finfo_open(FILEINFO_MIME);
-        $mime_type = finfo_file($finfo, $url);
+        $mime_type = finfo_file($finfo, $path);
         return $mime_type;
     }
 }

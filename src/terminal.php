@@ -3,7 +3,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-define('VERSION','2.2024.07.22');
+define('VERSION','3.2024.08.02');
 
 function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
@@ -67,9 +67,31 @@ else if ($action=='read') {
     $to = intval(getFrom($_GET, 't', null));
     $content = readFilePart($path, $from, $to);
 
+    header('Content-Type: application/json');
     echo json_encode([
         'out' => $content,
     ]);
+}
+else if ($action=='readtail') {
+    $path = getFrom($_GET, 'r', null);
+    $from = intval(getFrom($_GET, 'f', null));
+    $content = readTailOfFile($path, $from, $to);
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'out' => $content,
+    ]);
+}
+else if ($action=='kill') {
+    $pid = getFrom($_GET, 'pid', null);
+    $res_b = posix_kill($pid, 9); // 9 is the SIGKILL signal
+    
+    if ($res_b) {
+        header('Location: ?action=list_background');
+    } else {
+        // TODO
+        echo 'Status: ', $res_b;
+    }
 }
 
 function readFilePart($path, $from=0, $to=0) {
@@ -77,15 +99,15 @@ function readFilePart($path, $from=0, $to=0) {
     $from = min($from, $fileSize);
     $out = '';
     $fp = fopen($path, 'r');
+    fseek($fp, $from);
 
     if ($to - $from > 0) {
-        fseek($fp, $from);
         $out = fread($fp, $to - $from);
     } else {
         $size = 256;
     
         while(!feof($fp)) {
-            fseek($fp, $from);
+            // fseek($fp, $from);
             $data = fread($fp, $size);  // assumes lines are < $size characters
             $pos = strpos($data, "\n");
             if ($pos !== false) {
@@ -100,6 +122,21 @@ function readFilePart($path, $from=0, $to=0) {
     fclose($fp);
     return $out;
 }
+
+function readTailOfFile($path, $from=0) {
+    $fileSize = filesize($path);
+    $from = min($from, $fileSize);
+    $out = '';
+    $fp = fopen($path, 'r');
+
+    fseek($fp, $from);
+    while (!feof($fp)) {
+        $contents .= fread($fp, 8192);
+    }
+    fclose($fp);
+    return $out;
+}
+
 
 function layout_head() {
     echo '<!DOCTYPE html>';
@@ -128,6 +165,8 @@ function list_background($command) {
     $output="";
     exec($execstring, $output);
     foreach($output as $row) {
+        // TODO parse each row!
+        // ?action=kill&p=<pid>
         echo $row;
         echo '<br>';
     }
