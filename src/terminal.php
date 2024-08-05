@@ -3,7 +3,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-define('VERSION','3.2024.08.02');
+define('VERSION','4.2024.08.05');
 
 function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
@@ -38,13 +38,29 @@ if ($action=='form') {
         execute_user_command($user_command);
     }
     else if (isset($_GET['pid'])) {
-        // TODO long poling
+        // TODO add button to stop the command execution, clear interval
         echo '<p>PID: ',$_GET['pid'],'</p>';
         echo '<textarea id="log"></textarea>';
         echo '<script>
+const searchParams = new URLSearchParams(location.search);
+const pid = searchParams.get("pid");
+const resource = "/tmp/pid." + pid + ".log";
+let _start=0;
+
+function checkProcess(){
+    const start = _start;
+    fetch("?action=readtail&f=" + start + "&r=" + resource).then(response => {
+        return response.json();
+    }).then(data => {
+        _start = start + data.out.length;
+        document.all.log.value += data.out;
+    });
+}
 window.onload = function(){        
-    let start=0;
-    console.log("TODO");
+    console.log("TODO %s", resource);
+    
+    setInterval(checkProcess, 2*1000);
+    checkProcess();
 };
 
 </script>';
@@ -75,7 +91,7 @@ else if ($action=='read') {
 else if ($action=='readtail') {
     $path = getFrom($_GET, 'r', null);
     $from = intval(getFrom($_GET, 'f', null));
-    $content = readTailOfFile($path, $from, $to);
+    $content = readTailOfFile($path, $from);
 
     header('Content-Type: application/json');
     echo json_encode([
@@ -131,7 +147,7 @@ function readTailOfFile($path, $from=0) {
 
     fseek($fp, $from);
     while (!feof($fp)) {
-        $contents .= fread($fp, 8192);
+        $out .= fread($fp, 8192);
     }
     fclose($fp);
     return $out;
@@ -164,12 +180,34 @@ function list_background($command) {
     $execstring=$command.' 2>&1';
     $output="";
     exec($execstring, $output);
+    echo '
+<style>
+.grid {
+    display: grid;
+    grid-gap: .5rem .5rem;
+    white-space: nowrap;
+    grid-template-columns: min-content min-content min-content min-content min-content min-content min-content min-content;
+
+}
+</style>';
+    echo '<div class="grid">';
     foreach($output as $row) {
+        // $cells = explode(' ', $row);
+        $parts = preg_split('/\s+/', $row);
+        echo '<!--';
+        print_r($parts);
+        echo '-->';
+        // TODO [1..6,*cmd]    
+
         // TODO parse each row!
         // ?action=kill&p=<pid>
-        echo $row;
-        echo '<br>';
+        
+        echo $row, '<br>';
+        // foreach($cells as $cell) {
+        //     echo '<div class="">', $cell, '</div>';
+        // }
     }
+    echo '</div>';
     // print_r($output);
 }
 
@@ -177,7 +215,7 @@ function execute_user_command($command) {
     $cmd_id = rand(5, 1500);
     $log_path = '/tmp/out.'.$cmd_id.'.log';
 
-    $execstring = $command . ' < /dev/null > ' . $log_path . '2>&1 & echo $!';
+    $execstring = $command . ' < /dev/null > ' . $log_path . ' 2>&1 & echo $!';
     $pid = exec($execstring, $output, $code);
 
     if (0) {
