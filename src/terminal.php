@@ -3,7 +3,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-define('VERSION','4.2024.08.05');
+define('VERSION','5.2024.08.07');
 
 function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
@@ -22,25 +22,41 @@ if ($action=='form') {
         session_destroy();
     } else if(isset($_POST['command'])){
         $command = $_POST['command'];
-    } 
-    
-    echo '<a href="?action=form">Home</a>';
-    echo '<a href="?action=list_background">Background tasks</a>';
-    echo '<a href="?action=list_jobs">Background jobs</a>';
-    echo '<br><form action="?action=form" method="POST">',
+    }
+    echo '<style>
+    body,textarea,input{box-sizing:border-box;}
+    body{margin:0;min-height:100vh;padding:.5rem;}
+    body{display:flex;flex-direction:column;}
+    header{flex:0 0 auto;}
+    main{flex:1 1 auto;}
+    textarea{width:100%;height:100%;padding:.5rem;resize:none;}
+    nav>a{margin-right:.5rem;}
+    nav{margin:0 0 1rem 0;}
+    form>button{margin-left:1rem;}
+    </style>';
+    echo '<header>',
+    '<nav>
+        <a href="?action=form">Home</a>
+        <a href="?action=list_background">Background tasks</a>
+        <a href="?action=list_jobs">Background jobs</a>
+    </nav>';
+    echo '<form action="?action=form" method="POST">',
         '<input name="command" autofocus required value="', htmlspecialchars($command), '"/>',
         '<button type="submit">Submit</button>',
     '</form>';
     
     if (isset($_POST['command'])) {
+        echo '</header>';
         layout_tail();
         $user_command = $_POST['command'];
         execute_user_command($user_command);
     }
     else if (isset($_GET['pid'])) {
+        echo '<p>PID: ', htmlspecialchars($_GET['pid']), '&nbsp;<a href="?action=kill&pid=',htmlspecialchars($_GET['pid']),'">Cancel</a>', '</p>';
+        echo '</header>';
         // TODO add button to stop the command execution, clear interval
-        echo '<p>PID: ',$_GET['pid'],'</p>';
-        echo '<textarea id="log"></textarea>';
+        
+        echo '<main><textarea id="log"></textarea></main>';
         echo '<script>
 const searchParams = new URLSearchParams(location.search);
 const pid = searchParams.get("pid");
@@ -54,6 +70,7 @@ function checkProcess(){
     }).then(data => {
         _start = start + data.out.length;
         document.all.log.value += data.out;
+        document.all.log.scrollTo(0, document.all.log.scrollHeight);
     });
 }
 window.onload = function(){        
@@ -158,7 +175,8 @@ function layout_head() {
     echo '<!DOCTYPE html>';
     echo '<html>';
     echo '<head>';
-    echo '<meta charset="utf-8"/>';
+    echo '<meta charset="utf-8"/>',
+    '<title>TRMNL</title>';
     echo '</head>';
     echo '<body>';
 }
@@ -183,32 +201,41 @@ function list_background($command) {
     echo '
 <style>
 .grid {
-    display: grid;
-    grid-gap: .5rem .5rem;
-    white-space: nowrap;
-    grid-template-columns: min-content min-content min-content min-content min-content min-content min-content min-content;
-
+    display:grid;
+    grid-gap:.5rem .5rem;
+    white-space:nowrap;
 }
+.command{color:blue;}
 </style>';
-    echo '<div class="grid">';
+    
+    $n_col=null;
     foreach($output as $row) {
         // $cells = explode(' ', $row);
         $parts = preg_split('/\s+/', $row);
-        echo '<!--';
-        print_r($parts);
-        echo '-->';
-        // TODO [1..6,*cmd]    
-
-        // TODO parse each row!
-        // ?action=kill&p=<pid>
-        
-        echo $row, '<br>';
-        // foreach($cells as $cell) {
-        //     echo '<div class="">', $cell, '</div>';
-        // }
+        if (!isset($n_col)) {
+            $n_col=count($parts) - 1;
+            echo '<div class="grid" style="grid-template-columns:',str_repeat(' min-content', $n_col + 1),';">';
+            foreach($parts as $cell) {
+                echo '<div class="">', $cell, '</div>';
+            }
+        } else {
+            $cmd=array_slice($parts, $n_col);
+            $parts=array_slice($parts, 0, $n_col);
+            foreach($parts as $i => $cell) {
+                echo '<div class="">';
+                if ($i===1) {
+                    echo '<a href="?action=kill&pid=',htmlspecialchars($cell),'">',$cell,'</a>';
+                } else {
+                    echo $cell;
+                }
+                echo '</div>';
+            }
+            if (isset($cmd)) {
+                echo '<div class="command">', implode(' ', $cmd), '</div>';
+            }
+        }
     }
     echo '</div>';
-    // print_r($output);
 }
 
 function execute_user_command($command) {
