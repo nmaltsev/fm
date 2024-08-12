@@ -3,7 +3,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-define('VERSION','5.2024.08.07');
+define('VERSION','6.2024.08.12');
 
 function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
@@ -52,7 +52,10 @@ if ($action=='form') {
         execute_user_command($user_command);
     }
     else if (isset($_GET['pid'])) {
-        echo '<p>PID: ', htmlspecialchars($_GET['pid']), '&nbsp;<a href="?action=kill&pid=',htmlspecialchars($_GET['pid']),'">Cancel</a>', '</p>';
+        echo '<p>PID: ', htmlspecialchars($_GET['pid']), 
+        '&nbsp;<a href="?action=kill&pid=',htmlspecialchars($_GET['pid']),
+        '&back=',urlencode('?action=form'),
+        '">Cancel</a>', '</p>';
         echo '</header>';
         // TODO add button to stop the command execution, clear interval
         
@@ -86,7 +89,8 @@ window.onload = function(){
 }
 else if ($action=='list_background') {
     layout_head();
-    list_background('ps -f');
+    $flags = isset($_GET['f']) && preg_match('/^[\-a-z0-9]+$/i', $_GET['f']) ? $_GET['f'] : '-f';
+    list_background('ps '.$flags);
     layout_tail();
 }
 else if ($action=='list_jobs') {
@@ -117,14 +121,37 @@ else if ($action=='readtail') {
 }
 else if ($action=='kill') {
     $pid = getFrom($_GET, 'pid', null);
+    // TODO how to get error description?
     $res_b = posix_kill($pid, 9); // 9 is the SIGKILL signal
+
+    $fallback = getFrom($_GET, 'back', '?action=list_background');
     
     if ($res_b) {
-        header('Location: ?action=list_background');
+        header('Location: '.$fallback);
     } else {
-        // TODO
-        echo 'Status: ', $res_b;
+        $message = 'An error occurred while killing a process with pid: '.$pid.'.';
+        
+        $e = error_get_last();
+        echo '<pre>';
+        print_r($e);
+        echo '</pre>';
+        if (isset($e)) {
+            $message .= 'Message: '.$e['message'].' File: '.$e['file'].' Line: '.$e['line'];
+        }
+
+        $redirect = '?action=error&message=' . urlencode($message) . '&back=' . urlencode($fallback);
+        header('Location: '.$redirect);
     }
+}
+else if ($action == 'error') {
+    $message = urldecode($_GET['message']);
+    $fallback = getFrom($_GET, 'back', '');
+    layout_head();
+    echo '<dir>';
+    echo '<h3>', htmlspecialchars($message), '</h3>';
+    echo '<a href="', $fallback, '">Back</a>';
+    echo '</dir>';
+    layout_tail();
 }
 
 function readFilePart($path, $from=0, $to=0) {
@@ -224,7 +251,7 @@ function list_background($command) {
             foreach($parts as $i => $cell) {
                 echo '<div class="">';
                 if ($i===1) {
-                    echo '<a href="?action=kill&pid=',htmlspecialchars($cell),'">',$cell,'</a>';
+                    echo '<a href="?action=kill&pid=',htmlspecialchars($cell), '&back=',urlencode('?action=list_background'),'">',$cell,'</a>';
                 } else {
                     echo $cell;
                 }
