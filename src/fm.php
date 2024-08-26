@@ -519,7 +519,7 @@ async function uploadHandler(event){
                 // Your error is here!
                 console.log('Err: ', error)
             });
-        console.log(response.ok);
+        console.log('Progress pos: %s/%s', bytes, file.size);
         console.dir(response);
         progresNode.textContent = bytes + ' / ' + file.size;
         const content = await response.json().catch((error) => {
@@ -544,6 +544,7 @@ async function uploadHandler(event){
         .catch((error) => {
             console.log('Err: ', error)
         }));
+    progresNode.textContent = file.size + ' / ' + file.size;
     console.log('Final req status:', finalResponse.ok);
     console.dir(finalResponse);
     const content = await (finalResponse.json().catch((error) => {

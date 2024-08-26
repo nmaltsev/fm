@@ -28,8 +28,8 @@ if ($action=='form') {
     body{margin:0;min-height:100vh;padding:.5rem;}
     body{display:flex;flex-direction:column;}
     header{flex:0 0 auto;}
-    main{flex:1 1 auto;}
-    textarea{width:100%;height:100%;padding:.5rem;resize:none;}
+    main{flex:1 1 auto;position:relative;}
+    textarea{position:absolute;width:100%;height:100%;padding:.5rem;resize:none;}
     nav>a{margin-right:.5rem;}
     nav{margin:0 0 1rem 0;}
     form>button{margin-left:1rem;}
@@ -53,7 +53,7 @@ if ($action=='form') {
     }
     else if (isset($_GET['pid'])) {
         echo '<p>PID: ', htmlspecialchars($_GET['pid']), 
-        '&nbsp;<a href="?action=kill&pid=',htmlspecialchars($_GET['pid']),
+        '&nbsp;<a id="cancelBtn" href="?action=kill&pid=',htmlspecialchars($_GET['pid']),
         '&back=',urlencode('?action=form'),
         '">Cancel</a>', '</p>';
         echo '</header>';
@@ -78,6 +78,7 @@ function checkProcess(){
 }
 window.onload = function(){        
     console.log("TODO %s", resource);
+    // TODO call check process exist ?action=isrunning&pid=<>
     
     setInterval(checkProcess, 2*1000);
     checkProcess();
@@ -152,6 +153,21 @@ else if ($action == 'error') {
     echo '<a href="', $fallback, '">Back</a>';
     echo '</dir>';
     layout_tail();
+}
+else if ($action == 'isrunning') {
+    header('Content-Type: application/json');
+    if (isset($_GET['pid'])) {
+        $pid = intval($_GET['pid']);
+        
+        echo json_encode([
+            'isRunning' => posix_getpgid($pid) != false,
+        ]);
+        die();    
+    }
+    echo json_encode([
+        'error' => 'Process number not specified'
+    ]);
+    die();
 }
 
 function readFilePart($path, $from=0, $to=0) {
@@ -251,14 +267,16 @@ function list_background($command) {
             foreach($parts as $i => $cell) {
                 echo '<div class="">';
                 if ($i===1) {
-                    echo '<a href="?action=kill&pid=',htmlspecialchars($cell), '&back=',urlencode('?action=list_background'),'">',$cell,'</a>';
+                    $pid = $cell;
+                    echo '<a href="?action=kill&pid=',htmlspecialchars($pid),'&back=',urlencode('?action=list_background'),'">',$pid,'</a>';
                 } else {
                     echo $cell;
                 }
                 echo '</div>';
             }
             if (isset($cmd)) {
-                echo '<div class="command">', implode(' ', $cmd), '</div>';
+                echo '<div class="command">',
+                '<a href="?action=form&pid=',htmlspecialchars(isset($pid) ? $pid : ''),'">', implode(' ', $cmd), '</a></div>';
             }
         }
     }

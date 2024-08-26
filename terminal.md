@@ -8,7 +8,6 @@ tail -f /proc/<pid>/fd/1
 
 (or like @jmhostalet says: cat /proc/<pid>/fd/1 if tail doesn't work)
 ----------------------
-284
 
 If all you want to do is spy on the existing process, you can use strace -p1234 -s9999 -e write where 1234 is the process ID. (-s9999 avoids having strings truncated to 32 characters, and write the system call that produces output.) If you want to view only data written on a particular file descriptor, you can use something like strace -p1234 -e trace= -e write=3 to see only data written to file descriptor 3 (-e trace= prevents the system calls from being loged). That won't give you output that's already been produced.
 
