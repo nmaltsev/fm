@@ -332,7 +332,13 @@ else if ($action === 'download') {
         die();
     }
     if (is_dir($path)) {
+        // TODO check PHP version > 5.5
+        // if (true) {
+        //     return;
+        // }
         require_once('./mods/zip.php');
+        // TODO move in a function from mods/zip.php
+        // stream_zip($path);
         if (class_exists(Core\ZipFile::class)) {
             // Create an archive from a directory
             header('Content-Type: application/octet-stream');
@@ -356,7 +362,7 @@ else if ($action === 'download') {
     die();
 }
 else if ($action == 'delete') {
-    function removeDir(string $source): bool {
+    function removeDir($source) {
         if (empty($source) || file_exists($source) === false) {
             return false;
         }
@@ -629,8 +635,6 @@ else if ($action == 'new_handler') {
         $path = $_POST['path'];
         $type = $_POST['type'];
         
-        echo 'P: '.$path. ' R: '.$redirect.' T: '. $type;
-
         if ($type === 'dir') {
             mkdir($path, 0777, true);
         } else if ($type === 'file') {
