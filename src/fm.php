@@ -1,5 +1,5 @@
 <?php
-define('VERSION','25.2024.07.24');
+define('VERSION','26.2024.09.16');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -19,8 +19,11 @@ function layoutHeader() {
         <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
         <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
         <style>
-        :root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}
-        body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
+:root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}
+body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
+fieldset{border:none;}
+fieldset>legend{float:left;display:block;width:100%;}
+fieldset,fieldset>legend{padding:0;margin:0;}
 .v-btn,button{cursor:pointer;border:none;padding:.5rem 1rem;transition:background-color .2s,color .2s,box-shadow .2s;}
 ._btn-a{border:1px solid #fff;color:#fff;background:transparent;}
 ._btn-a:hover,
@@ -29,6 +32,7 @@ function layoutHeader() {
 button+button,.v-btn+.v-btn,button+.v-btn,button+a{margin-left:.8rem;}
 .__b-primary{background:var(--blue1);color:#fff;}
 .__b-primary:hover,.__b-primary:focus{background:var(--fucsia);}
+.__b-primary:disabled,.__b-primary:disabled:hover,.__b-primary:disabled:focus{background:#ccc;}
 .__b-secondary1{background:#fff;outline: 1px solid var(--blue1);color: var(--blue1);}
 textarea{outline:none;background:#f7f8f9;color:#222;}
 textarea:focus{outline:2px solid #b3b2be;outline-offset:-1px;}
@@ -160,7 +164,7 @@ if ($action == 'dir') {
         // TODO skip viewers in case of `&t`
         if (!isset($_GET['t'])) {
             if (strpos($mime_type, 'video/') === 0) {
-                $next_path = '?action=forward2&path='.urlencode($path);
+                $next_path = '?action=media&path='.urlencode($path);
                 echo '<div class="f-wrapper">',
                         '<video playsinline loop autoplay preload=auto controls class="f-max" style="background:#111;">',
                             '<source src="',$next_path,'" type="',$mime_type,'"/>',
@@ -281,7 +285,7 @@ else if ($action === 'forward') {
         die();
     }
     $finfo = finfo_open(FILEINFO_MIME);
-    $mime_type = finfo_file($finfo, $path);
+    $mime_type = fix_mime(finfo_file($finfo, $path));
     header('Content-Type: ' . $mime_type);
     header('Content-Length: ' . filesize($path));
         
@@ -301,10 +305,9 @@ else if ($action === 'forward2') {
         http_response_code(404);
         die();
     }
-    // PHP Fatal error:  Allowed memory size of 134217728 bytes exhausted (tried to allocate 226992128 bytes) in /cygdrive/c/Users/User/Documents/repos/desk/petprojects/php_adminpanel/src/dev.php on line 186
-
+    
     $finfo = finfo_open(FILEINFO_MIME);
-    $mime_type = finfo_file($finfo, $path);
+    $mime_type = fix_mime(finfo_file($finfo, $path));
     header('Content-Type: ' . $mime_type);
     header('Content-Length: ' . filesize($path));
         
@@ -322,7 +325,18 @@ else if ($action === 'forward2') {
     }
     die();
 }
-
+else if ($action==='media') {
+    if (!preg_match('/^[^.][-a-z0-9_.,\s\/@\(\)\[\];\']+$/i', $path)) {
+        die('Invalid file name! ['.$path.']');
+    }
+    if (!file_exists($path)) {
+        http_response_code(404);
+        die();
+    }
+    require_once('./mods/video.php');
+    stream_video($path);
+    die();
+}
 else if ($action === 'download') {
     // if (!preg_match('/^[^.][-a-z0-9_.,\s\/@\(\)\[\]]+$/i', $path)) {
     //     die('Invalid file name! ['.$path.']');
@@ -474,14 +488,16 @@ else if ($action == 'upload_form') {
     echo layoutHeader();
     echo '<dir class="wrapper __middle">',
         '<form onSubmit="uploadHandler(event)" method="POST" class="dialog mb1">',
-            '<input type="hidden" name="redirect" value="',$redirect,'"/>',
-            '<input type="hidden" name="path" value="',$path,'"/>',
-            '<label><h4>Select a File to Upload:</h4>',
-                '<input type="file" name="file" id="file" class="target-input"/>',
-            '</label>',
-            '<button type="submit" class="__b-primary">Upload</button>',
-            '<button type="reset">Reset</button>',
-            '<a href="', $redirect, '">Back</a>',
+            '<fieldset id="uploader">',
+                '<input type="hidden" name="redirect" value="',$redirect,'"/>',
+                '<input type="hidden" name="path" value="',$path,'"/>',
+                '<label><h4>Select a File to Upload:</h4>',
+                    '<input type="file" name="file" id="file" class="target-input"/>',
+                '</label>',
+                '<button type="submit" class="__b-primary">Upload</button>',
+                '<button type="reset">Reset</button>',
+                '<a href="', $redirect, '">Back</a>',
+            '</fieldset>',
         '</form>',
         '<div id="progres"></div>';
     echo '<script>';
@@ -504,10 +520,11 @@ async function uploadHandler(event){
     event.preventDefault();
     event.stopPropagation();
     const file = document.getElementById('file').files[0];
+    const uploaderFieldset = document.getElementById('uploader');
     const basepath = document.querySelector('input[name=path]').value;
     const progresNode = document.getElementById('progres');
-    console.log('F', file);
-
+    
+    uploaderFieldset.setAttribute('disabled', true);
     progresNode.textContent = '0 / ' + file.size;
 
     for (const [chunk, bytes] of readFile(file)) { 
@@ -522,7 +539,6 @@ async function uploadHandler(event){
                 return response;
             })
             .catch((error) => {
-                // Your error is here!
                 console.log('Err: ', error)
             });
         console.log('Progress pos: %s/%s', bytes, file.size);
@@ -564,10 +580,12 @@ async function uploadHandler(event){
     } else {
         alert('Done. File ' + file.name + ' was uploaded');
     }
+    uploaderFieldset.removeAttribute('disabled');
     event.target.reset();
 }";
     echo '</script>';
     echo layoutTail();
+    // TODO: <fieldset disabled="disabled">x
 }
 else if ($action == 'uploadaction') {
     session_start();
@@ -684,3 +702,7 @@ function intword($number, $units=null, $kilo=null, $decimals=null){
 	// return $number;
 	return round($humanized, $decimals) . $units[$unit];
 } 
+
+function fix_mime($mime) {
+    return str_replace('image/svg;', 'image/svg+xml;', $mime);
+}
