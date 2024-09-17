@@ -1,5 +1,5 @@
 <?php
-define('VERSION','26.2024.09.16');
+define('VERSION','27.2024.09.17');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -45,6 +45,7 @@ input:focus{border-color:#b3b2be;}
     grid-auto-rows:min-content;font-size:.9rem;line-height:1.2rem;
     grid-template-columns:repeat(7, min-content) auto;}
 .files>li{display:contents;}
+.files>li:not(:first-child)>a:first-child{overflow:hidden;max-width:50vw;text-overflow:ellipsis;position:sticky;left:0;background:#fff;}
 .files>li:hover>span, .files>li:hover>i, .files>li:hover>a{background:#ddf4ffd6;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
 .files .skip-columns{grid-column:span 7;}
@@ -155,13 +156,14 @@ if ($action == 'dir') {
         
         $finfo = finfo_open(FILEINFO_MIME);
         $mime_type = finfo_file($finfo, $path);
-        // TODO edit button for SVG images
         echo '<header class="files-panel f-min f-row cpanel">', 
             '<span class="fm_ellipsis">', htmlspecialchars($path), ' (', $mime_type, ')','</span>',
+            // Enable the edit button for SVG images
+            (strpos($mime_type, 'image/svg') === 0 ? '<a class="v-btn _btn-a" href="?action=dir&t&path='.urlencode($path).'">Edit</a>': ''),
             '<a class="v-btn _btn-a" href="', $back_link, '">Back</a>',
         '</header>';
 
-        // TODO skip viewers in case of `&t`
+        // Skip viewers in case of `&t`
         if (!isset($_GET['t'])) {
             if (strpos($mime_type, 'video/') === 0) {
                 $next_path = '?action=media&path='.urlencode($path);
@@ -585,7 +587,6 @@ async function uploadHandler(event){
 }";
     echo '</script>';
     echo layoutTail();
-    // TODO: <fieldset disabled="disabled">x
 }
 else if ($action == 'uploadaction') {
     session_start();

@@ -3,7 +3,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-define('VERSION','6.2024.08.12');
+define('VERSION','7.2024.09.17');
 
 function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
@@ -40,18 +40,13 @@ if ($action=='form') {
         <a href="?action=list_background">Background tasks</a>
         <a href="?action=list_jobs">Background jobs</a>
     </nav>';
-    echo '<form action="?action=form" method="POST">',
+    echo '<input type="hidden" name="rootdir" id="rootdir" value="', sys_get_temp_dir(), '"/>';
+    echo '<form action="?action=cmd" method="POST">',
         '<input name="command" autofocus required value="', htmlspecialchars($command), '"/>',
         '<button type="submit">Submit</button>',
     '</form>';
     
-    if (isset($_POST['command'])) {
-        echo '</header>';
-        layout_tail();
-        $user_command = $_POST['command'];
-        execute_user_command($user_command);
-    }
-    else if (isset($_GET['pid'])) {
+    if (isset($_GET['pid'])) {
         echo '<p>PID: ', htmlspecialchars($_GET['pid']), 
         '&nbsp;<a id="cancelBtn" href="?action=kill&pid=',htmlspecialchars($_GET['pid']),
         '&back=',urlencode('?action=form'),
@@ -63,7 +58,9 @@ if ($action=='form') {
         echo '<script>
 const searchParams = new URLSearchParams(location.search);
 const pid = searchParams.get("pid");
-const resource = "/tmp/pid." + pid + ".log";
+const rootDir = document.getElementById("rootdir")?.value;
+console.log("RootDir %s", rootDir);
+const resource = rootDir + "/pid." + pid + ".log";
 let _start=0;
 
 function checkProcess(){
@@ -87,6 +84,13 @@ window.onload = function(){
 </script>';
         layout_tail();
     }
+}
+else if ($action=='cmd') {
+    $user_command = $_POST['command'];
+    $pid = execute_user_command($user_command);
+    $_SESSION['command'] = $user_command;
+    header('Location: '.'?action=form&pid='.$pid);
+    die();
 }
 else if ($action=='list_background') {
     layout_head();
@@ -283,9 +287,10 @@ function list_background($command) {
     echo '</div>';
 }
 
+// TODO execute in AJAX handler
 function execute_user_command($command) {
     $cmd_id = rand(5, 1500);
-    $log_path = '/tmp/out.'.$cmd_id.'.log';
+    $log_path = tempnam(sys_get_temp_dir(), 'out.'.$cmd_id.'.log');
 
     $execstring = $command . ' < /dev/null > ' . $log_path . ' 2>&1 & echo $!';
     $pid = exec($execstring, $output, $code);
@@ -296,26 +301,10 @@ function execute_user_command($command) {
         echo "Logfile: $log_path <br>";
     }
     
-    symlink($log_path, '/tmp/pid.'.$pid.'.log');
-    session_start();
-    $_SESSION['command'] = $command;
-    header('Location: '.'?action=form&tt&pid='.$pid);
-    
-    // sleep(1);
-    // $is_running =  posix_getpgid($pid); 
-    // echo 'Executing: ', ($is_running ? 'Yes' : 'No'), '<br>';
-    
-    // $fh = fopen($log_path, 'r');
-    // echo '<pre>';
-    // while ($line = fgets($fh)) {
-    //     echo htmlspecialchars($line);
-    // }
-    // fclose($fh);
-    // echo '</pre>';
-    // if (!$is_running) unlink($log_path);
-
-    // 
+    symlink($log_path, sys_get_temp_dir().'/pid.'.$pid.'.log');
+    return $pid;
 }
+
 function execute_cmd($cmd){
     $execstring = $cmd . ' 2>&1 &';
     ob_start();
