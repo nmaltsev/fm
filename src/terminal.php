@@ -75,6 +75,7 @@ function checkProcess(){
 }
 window.onload = function(){        
     console.log("TODO %s", resource);
+    document.all.log.value = "";
     // TODO call check process exist ?action=isrunning&pid=<>
     
     setInterval(checkProcess, 2*1000);
@@ -287,7 +288,6 @@ function list_background($command) {
     echo '</div>';
 }
 
-// TODO execute in AJAX handler
 function execute_user_command($command) {
     $cmd_id = rand(5, 1500);
     $log_path = tempnam(sys_get_temp_dir(), 'out.'.$cmd_id.'.log');
@@ -300,8 +300,10 @@ function execute_user_command($command) {
         echo 'PID: ', $pid, '<br>';
         echo "Logfile: $log_path <br>";
     }
-    
-    symlink($log_path, sys_get_temp_dir().'/pid.'.$pid.'.log');
+    if (!@symlink($log_path, sys_get_temp_dir().'/pid.'.$pid.'.log')) {
+        // echo 'Cant create a symlink';
+        rename($log_path, sys_get_temp_dir().'/pid.'.$pid.'.log');
+    }
     return $pid;
 }
 

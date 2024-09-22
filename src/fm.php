@@ -623,6 +623,7 @@ else if ($action == 'uploadaction') {
                 die('{"status":"error","error":"Invalid file path","filename":"'.$filename.'"}');
             }
             $is_success = @rename($tmpfile, $filename);
+            @unlink($tmpfile);
 
             if ($is_success) {
                 echo json_encode([
