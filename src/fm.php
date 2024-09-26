@@ -1,5 +1,5 @@
 <?php
-define('VERSION','27.2024.09.17');
+define('VERSION','28.2024.09.25');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -197,8 +197,8 @@ if ($action == 'dir') {
             .sliderbar>label,
             .sliderbar>input{display:inline-block;vertical-align:middle;margin:0 0 0 .5rem;}
             .sliderbar:hover{opacity:1;background-color:#ffffff78;}
-            .img_wrapper{width:100%;height:100%;}
-            .img_wrapper::after{content:"";display:inline-block;vertical-align:middle;width:0;height:100%;}
+            .img_wrapper{min-width:100%;min-height:100%;display:flex;justify-content:center;align-items:center;}
+            /*.img_wrapper::after{content:"";display:inline-block;vertical-align:middle;width:0;height:100%;}*/
             .img_wrapper>img{display:inline-block;vertical-align:middle;max-width:100%;max-height:100%;background:#e5e5e5;}
             </style>',
             '<form class="imageviewer_form" onchange="imageViewerChange(event)">
@@ -310,9 +310,10 @@ else if ($action === 'forward2') {
     
     $finfo = finfo_open(FILEINFO_MIME);
     $mime_type = fix_mime(finfo_file($finfo, $path));
+    // $mime_type = 'image/svg+xml';
     header('Content-Type: ' . $mime_type);
     header('Content-Length: ' . filesize($path));
-        
+    header('X-Path: ' . ($path));
     $maxRead = 1 * 1024 * 1024; // 1MB
     // Open a file in read mode.
     $fh = fopen($path, 'r');
@@ -687,6 +688,16 @@ else if ($action == 'saveas_handler') {
 else if ($action == 'info') {
     phpinfo();
 }
+else if ($action == 'files') {
+    $images = [];
+    $imageGenerator = iterateImages($path);
+    foreach ($imageGenerator as $image) {
+        $images []= $image;
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($images);
+}
+
 function get_ext($s) {$n = strrpos($s,"."); if($n===false) return "";return substr($s,$n+1);}
 function intword($number, $units=null, $kilo=null, $decimals=null){
 	if ($units == null) $units = ['', 'Kb', 'Mb', 'Gb', 'Tb'];
@@ -707,4 +718,15 @@ function intword($number, $units=null, $kilo=null, $decimals=null){
 
 function fix_mime($mime) {
     return str_replace('image/svg;', 'image/svg+xml;', $mime);
+}
+function iterateImages($dir) {
+    $files = scandir($dir);
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $ext = strtolower(substr($file, -4));
+        if ($ext !== '.svg' && $ext !== '.png' && $ext !== '.jpeg' && $ext !== '.jpg' && $ext !== '.gif') continue;
+        $path = $dir . '/' . $file;
+        if (!is_file($path)) continue;
+        yield $path;
+    }
 }
