@@ -3,6 +3,7 @@ define('VERSION','28.2024.09.25');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
+define('DEFAULT_PERM', 0777); # default permission for created resource
 
 function getfrom($array, $key, $default) {return isset($array[$key]) ? $array[$key] : $default;}
 
@@ -274,7 +275,7 @@ if ($action == 'dir') {
 }
 else if ($action === 'perm') {
     $redirect = $_GET['redirect'];
-    chmod($path, 0777);
+    chmod($path, DEFAULT_PERM);
     header('Location: '.$redirect);
 }
 
@@ -657,7 +658,7 @@ else if ($action == 'new_handler') {
         $type = $_POST['type'];
         
         if ($type === 'dir') {
-            mkdir($path, 0777, true);
+            mkdir($path, DEFAULT_PERM, true);
         } else if ($type === 'file') {
             touch($path);
         }
@@ -674,13 +675,19 @@ else if ($action == 'saveas_handler') {
         $redirect = $_POST['redirect'];
         $path = urldecode($_POST['path']);
         $next_path = $_POST['next_path'];
+        // The parent directory may not exist and must be created in advance!
+        $dirname = dirname($next_path);
+        if (!is_dir($dirname)) {
+            mkdir($dirname, DEFAULT_PERM, true);
+        }
         $is_success = copy($path, $next_path);
 
         if (!$is_success) {
             $errors = error_get_last();
+            $back_link = urlencode('?action=dir&path='.urlencode(dirname($path)));
             $redirect = '?action=error&message=' . 
-                urlencode($errors['type'].'\n'.$errors['message']) . 
-                '&path='.urlencode(dirname($path));
+                urlencode($errors['type'].' '.$errors['message']) . 
+                '&path='.$back_link;
         }
         header('Location: '.$redirect);
     }
