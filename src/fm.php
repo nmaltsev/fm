@@ -1,5 +1,5 @@
 <?php
-define('VERSION','28.2024.09.25');
+define('VERSION','29.2024.11.06');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -47,7 +47,7 @@ input:focus{border-color:#b3b2be;}
     grid-template-columns:repeat(7, min-content) auto;}
 .files>li{display:contents;}
 .files>li:not(:first-child)>a:first-child{overflow:hidden;max-width:50vw;text-overflow:ellipsis;position:sticky;left:0;background:#fff;}
-.files>li:hover>span, .files>li:hover>i, .files>li:hover>a{background:#ddf4ffd6;}
+.files>li:hover>span, .files>li:hover>i, .files>li:hover>a{background:#ddf4ffd6!important;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
 .files .skip-columns{grid-column:span 7;}
 .stick2top{position:sticky;background:#fff;top:0;}
@@ -547,7 +547,7 @@ async function uploadHandler(event){
             });
         console.log('Progress pos: %s/%s', bytes, file.size);
         console.dir(response);
-        progresNode.textContent = bytes + ' / ' + file.size;
+        progresNode.textContent = filesize(bytes) + ' / ' + filesize(file.size);
         const content = await response.json().catch((error) => {
             console.log('Parse error1:');
             console.dir(error);
@@ -570,7 +570,7 @@ async function uploadHandler(event){
         .catch((error) => {
             console.log('Err: ', error)
         }));
-    progresNode.textContent = file.size + ' / ' + file.size;
+    progresNode.textContent = filesize(file.size) + ' / ' + filesize(file.size);
     console.log('Final req status:', finalResponse.ok);
     console.dir(finalResponse);
     const content = await (finalResponse.json().catch((error) => {
@@ -586,6 +586,19 @@ async function uploadHandler(event){
     }
     uploaderFieldset.removeAttribute('disabled');
     event.target.reset();
+}
+function filesize(bytes) {
+	if (filesize < 1) { return '0B'; }
+	let units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'], unit = units.length - 1;
+    for (let i=0; i < units.length; i++) {
+		if (bytes < Math.pow(1024, i+1)) {
+			unit = i;
+			break;
+		}
+	}
+    const humanized = bytes / Math.pow(1024, unit);
+    const suffix = units[unit] || '';
+	return humanized + suffix
 }";
     echo '</script>';
     echo layoutTail();
@@ -675,19 +688,25 @@ else if ($action == 'saveas_handler') {
         $redirect = $_POST['redirect'];
         $path = urldecode($_POST['path']);
         $next_path = $_POST['next_path'];
-        // The parent directory may not exist and must be created in advance!
-        $dirname = dirname($next_path);
-        if (!is_dir($dirname)) {
-            mkdir($dirname, DEFAULT_PERM, true);
-        }
-        $is_success = copy($path, $next_path);
-
-        if (!$is_success) {
-            $errors = error_get_last();
-            $back_link = urlencode('?action=dir&path='.urlencode(dirname($path)));
-            $redirect = '?action=error&message=' . 
-                urlencode($errors['type'].' '.$errors['message']) . 
-                '&path='.$back_link;
+        
+        if (is_dir($path)) {
+            // copy a directory content into the destination folder
+            recurse_copy($path, $next_path, -2);
+            // TODO report about errors
+        } else {
+            // The parent directory may not exist and must be created in advance!
+            $dirname = dirname($next_path);
+            if (!is_dir($dirname)) {
+                mkdir($dirname, DEFAULT_PERM, true);
+            }
+            $is_success = copy($path, $next_path);
+            if (!$is_success) {
+                $errors = error_get_last();
+                $back_link = urlencode('?action=dir&path='.urlencode(dirname($path)));
+                $redirect = '?action=error&message=' . 
+                    urlencode($errors['type'].' '.$errors['message']) . 
+                    '&path='.$back_link;
+            }
         }
         header('Location: '.$redirect);
     }
@@ -736,4 +755,28 @@ function iterateImages($dir) {
         if (!is_file($path)) continue;
         yield $path;
     }
+}
+function recurse_copy($source, $destination, $depth = 0) {
+    if ($depth > -2 && $depth < 0) return;
+	$directory = opendir($source);
+    if (!$directory) return;
+    $is_success = @mkdir($destination, DEFAULT_PERM, true); 
+    // TODO collect errors
+    // $errors = error_get_last();
+    // $errors['type'] $errors['message']
+    while(false !== ($file = readdir($directory))) { 
+        if ($file === '.' || $file === '..') continue;
+
+        $currentSourcePath = $source . '/' . $file;
+        $currentDestinationPath = $destination . '/' . $file;
+        
+        if (is_dir($currentSourcePath)) {
+            recurse_copy($currentSourcePath, $currentDestinationPath, $depth - 1);
+            continue;
+        }
+
+        copy($currentSourcePath, $currentDestinationPath);
+    }
+
+    closedir($directory); 
 }
