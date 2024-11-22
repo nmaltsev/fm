@@ -4,6 +4,7 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 define('DEFAULT_PERM', 0777); # default permission for created resource
+// define('TMP_DIR', '/tmp');
 
 function getfrom($array, $key, $default) {return isset($array[$key]) ? $array[$key] : $default;}
 
@@ -610,7 +611,8 @@ else if ($action == 'uploadaction') {
         $filename = $_POST['filename'];
     
         if (!isset($_SESSION[$filename])) {
-            $_SESSION[$filename] = tempnam(sys_get_temp_dir(), 'upl');
+			defined('TMP_DIR') or define('TMP_DIR', sys_get_temp_dir());
+            $_SESSION[$filename] = tempnam(TMP_DIR, 'upl');
         }
     
         $tmpfile = $_SESSION[$filename];
@@ -618,7 +620,12 @@ else if ($action == 'uploadaction') {
     
         if (isset($_FILES["chunk"])) {
             $chunk = $_FILES["chunk"]["tmp_name"];
-            file_put_contents($tmpfile, file_get_contents($chunk), FILE_APPEND);
+            # ?
+            # file_put_contents($tmpfile, file_get_contents($chunk), FILE_APPEND);
+            $nb = stream_copy_to_stream(fopen($chunk, 'r'),fopen($tmpfile, 'a'));
+            if ($nb == false) {
+				#TODO handle error
+			}
             echo json_encode([
                 'status' => 'chunk',
                 'filename' => $filename,
@@ -779,4 +786,16 @@ function recurse_copy($source, $destination, $depth = 0) {
     }
 
     closedir($directory); 
+}
+function chunked_copy($from, $to) {
+    $buffer_size = 1048576; 
+    $ret = 0;
+    $fin = fopen($from, "rb");
+    $fout = fopen($to, "a");
+    while(!feof($fin)) {
+        $ret += fwrite($fout, fread($fin, $buffer_size));
+    }
+    fclose($fin);
+    fclose($fout);
+    return $ret; # return number of bytes written
 }
