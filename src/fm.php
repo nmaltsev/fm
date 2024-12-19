@@ -97,8 +97,7 @@ if ($action == 'dir') {
     }
     
     if (!is_readable($path)) {
-        $referer = $_SERVER['HTTP_REFERER'];
-        $redirect = '?action=error&message=' . urlencode('Read permission denied to '.$path) . '&path='.urlencode('?action=dir&path=' . urlencode($referer));
+		$redirect = '?action=error&message=' . urlencode('Read permission denied to '.$path) . (isset($_SERVER['HTTP_REFERER']) ? '&path='.urlencode('?action=dir&path=' . urlencode($_SERVER['HTTP_REFERER'])) : '');
         header('Location: '.$redirect);
         return;
     }
