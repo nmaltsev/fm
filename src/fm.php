@@ -198,7 +198,7 @@ if ($action == 'dir') {
             .sliderbar>label,
             .sliderbar>input{display:inline-block;vertical-align:middle;margin:0 0 0 .5rem;}
             .sliderbar:hover{opacity:1;background-color:#ffffff78;}
-            .img_wrapper{min-width:100%;min-height:100%;display:flex;justify-content:center;align-items:center;}
+            .img_wrapper{min-width:100%;min-height:100%;display:flex;justify-content:space-around;align-items:center;}
             .img_wrapper{width:100%;height:100%;/*test #1*/}
             /*.img_wrapper::after{content:"";display:inline-block;vertical-align:middle;width:0;height:100%;}*/
             .img_wrapper>img{display:inline-block;vertical-align:middle;max-width:100%;max-height:100%;background:#e5e5e5;}
