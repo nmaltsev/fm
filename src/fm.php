@@ -491,22 +491,26 @@ else if ($action == 'new_form') {
 else if ($action == 'upload_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
+    echo '<style>#state{border: none;resize: none;width: 100%;white-space: pre;height: 4rem;}</style>';
     echo '<dir class="wrapper __middle">',
         '<form onSubmit="uploadHandler(event)" method="POST" class="dialog mb1">',
             '<fieldset id="uploader">',
                 '<input type="hidden" name="redirect" value="',$redirect,'"/>',
                 '<input type="hidden" name="path" value="',$path,'"/>',
                 '<label><h4>Select a File to Upload:</h4>',
-                    '<input type="file" name="file" id="file" class="target-input"/>',
+                    '<input type="file" multiple="multiple" name="file" id="file" class="target-input" onChange="changeHandler(event)"/>',
                 '</label>',
                 '<button type="submit" class="__b-primary">Upload</button>',
                 '<button type="reset">Reset</button>',
                 '<a href="', $redirect, '">Back</a>',
             '</fieldset>',
         '</form>',
+        '<textarea id="state" disabled></textarea>' ,
         '<div id="progres"></div>';
     echo '<script>';
 echo "
+// TODO onReset clean _state
+// TODO read from form
 const chunk_size = 512*1024; /* 1048570 1MB chunk size*/
 function* readFile(file) {
     const filesize = file.size;
@@ -521,7 +525,87 @@ function* readFile(file) {
         yield [formData, pos];
     }
 };
+function changeHandler(event) {
+    const files = Array.from(event.target.files);
+    const _state = document.getElementById('state');
+    const nameMax = Math.max.apply(null, files.map(file => file.name.length))
+    _state.textContent = files.map(file => file.name.padEnd(nameMax) + ' ' + filesize(file.size) + ' ' + file.lastModifiedDate.toLocaleString()).join('\\n')
+}
+async function* uploadFile(file, basepath) {
+    for (const [chunk, bytes] of readFile(file)) { 
+        const response = await fetch('?action=uploadaction', {method:'POST',body:chunk})
+            .then(function(response){
+                if (response.status >= 400 && response.status < 600) {
+                    throw new Error('Bad response from server');
+                }
+                return response;
+            })
+            .catch((error) => console.log('Err: ', error));
+        console.log('Progress pos: %s/%s', bytes, file.size);
+        console.dir(response);
+        
+        const content = await response.json().catch((error) => {
+            console.log('Parse error1:');
+            console.dir(error);
+            return {status:'error',body:error}
+        });
+        console.log('Resp:', content);
+        yield bytes;
+    };
+    const destinationData = new FormData(); 
+    destinationData.append('filename', file.name);
+    // Must be an absolute path
+    destinationData.append('basepath', basepath); 
+    const finalResponse = await (fetch('?action=uploadaction', {method:'POST',body:destinationData})
+        .then(function(response){
+            if (response.status >= 400 && response.status < 600) {
+                throw new Error('Bad response from server');
+            }
+            return response;
+        })
+        .catch((error) => console.log('Err: ', error)));
+    
+    const content = await (finalResponse.json().catch((error) => {
+        throw({status:'error',body:error})
+    }));
+    console.log('Final', content);
+    yield file.size;
+}
 async function uploadHandler(event){
+    event.preventDefault();
+    event.stopPropagation();
+    const files = document.getElementById('file').files;
+    const uploaderFieldset = document.getElementById('uploader');
+    const basepath = document.querySelector('input[name=path]').value;
+    const progresNode = document.getElementById('progres');
+    
+    uploaderFieldset.setAttribute('disabled', true);
+    progresNode.textContent = '0 / ' + file.size;
+    const _state = document.getElementById('state');
+
+    _state.textContent = '';
+
+    for(let i = 0; i < files.length; i++){
+        try {
+            for await (const bytes of uploadFile(files[i], basepath)) {
+                progresNode.textContent = filesize(bytes) + ' / ' + filesize(files[i].size);
+            }
+            // report success
+            _state.textContent += 'S ' + files[i].name + '\\n';
+        } catch(error) {
+            // report error
+            if (error.hasOwnProperty('status') && error['status'] === 'error') {
+                _state.textContent += 'F ' + files[i].name + ' ' + error['body'] + '\\n';
+            } else {
+                _state.textContent += 'F ' + files[i].name + ' ' + error + '\\n';
+            }
+        }
+    }
+
+    uploaderFieldset.removeAttribute('disabled');
+    event.target.reset();
+}
+async function uploadHandler2(event){
     event.preventDefault();
     event.stopPropagation();
     const file = document.getElementById('file').files[0];
