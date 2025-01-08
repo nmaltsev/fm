@@ -1,5 +1,5 @@
 <?php
-define('VERSION','29.2024.11.06');
+define('VERSION','30.2025.01.08');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -199,7 +199,7 @@ if ($action == 'dir') {
             .sliderbar>input{display:inline-block;vertical-align:middle;margin:0 0 0 .5rem;}
             .sliderbar:hover{opacity:1;background-color:#ffffff78;}
             .img_wrapper{min-width:100%;min-height:100%;display:flex;justify-content:space-around;align-items:center;}
-            .img_wrapper{width:100%;height:100%;/*test #1*/}
+            /*.img_wrapper{width:100%;height:100%;}*//*test #1*/
             /*.img_wrapper::after{content:"";display:inline-block;vertical-align:middle;width:0;height:100%;}*/
             .img_wrapper>img{display:inline-block;vertical-align:middle;max-width:100%;max-height:100%;background:#e5e5e5;}
             </style>',
@@ -491,9 +491,12 @@ else if ($action == 'new_form') {
 else if ($action == 'upload_form') {
     $redirect = $_GET['redirect'];
     echo layoutHeader();
-    echo '<style>#state{border: none;resize: none;width: 100%;white-space: pre;height: 4rem;}</style>';
+    echo '<style>
+    #state{border: none;resize: none;width: 100%;white-space: pre;height: 4rem;}
+    #state:placeholder-shown{display:none;}
+    </style>';
     echo '<dir class="wrapper __middle">',
-        '<form onSubmit="uploadHandler(event)" method="POST" class="dialog mb1">',
+        '<form onSubmit="uploadHandler(event)" onReset="resetHandler(event)" method="POST" class="dialog mb1">',
             '<fieldset id="uploader">',
                 '<input type="hidden" name="redirect" value="',$redirect,'"/>',
                 '<input type="hidden" name="path" value="',$path,'"/>',
@@ -505,11 +508,10 @@ else if ($action == 'upload_form') {
                 '<a href="', $redirect, '">Back</a>',
             '</fieldset>',
         '</form>',
-        '<textarea id="state" disabled></textarea>' ,
+        '<textarea id="state" disabled placeholder=" "></textarea>' ,
         '<div id="progres"></div>';
     echo '<script>';
 echo "
-// TODO onReset clean _state
 // TODO read from form
 const chunk_size = 512*1024; /* 1048570 1MB chunk size*/
 function* readFile(file) {
@@ -603,75 +605,15 @@ async function uploadHandler(event){
     }
 
     uploaderFieldset.removeAttribute('disabled');
-    event.target.reset();
+    document.getElementById('file').value = null;
+    progresNode.textContent = '';
 }
-async function uploadHandler2(event){
-    event.preventDefault();
-    event.stopPropagation();
-    const file = document.getElementById('file').files[0];
-    const uploaderFieldset = document.getElementById('uploader');
-    const basepath = document.querySelector('input[name=path]').value;
-    const progresNode = document.getElementById('progres');
-    
-    uploaderFieldset.setAttribute('disabled', true);
-    progresNode.textContent = '0 / ' + file.size;
 
-    for (const [chunk, bytes] of readFile(file)) { 
-        console.log('Chunk:')
-        console.dir(chunk);
-        
-        const response = await fetch('?action=uploadaction', {method:'POST',body:chunk})
-            .then(function(response){
-                if (response.status >= 400 && response.status < 600) {
-                    throw new Error('Bad response from server');
-                }
-                return response;
-            })
-            .catch((error) => {
-                console.log('Err: ', error)
-            });
-        console.log('Progress pos: %s/%s', bytes, file.size);
-        console.dir(response);
-        progresNode.textContent = filesize(bytes) + ' / ' + filesize(file.size);
-        const content = await response.json().catch((error) => {
-            console.log('Parse error1:');
-            console.dir(error);
-            return {status:'error',body:error}
-        });
-        console.log('Resp:', content);
-    }; 
-    const destinationData = new FormData(); 
-    destinationData.append('filename', file.name);
-    // Must be an absolute path
-    destinationData.append('basepath', basepath); 
-    
-    const finalResponse = await (fetch('?action=uploadaction', {method:'POST',body:destinationData})
-        .then(function(response){
-            if (response.status >= 400 && response.status < 600) {
-                throw new Error('Bad response from server');
-            }
-            return response;
-        })
-        .catch((error) => {
-            console.log('Err: ', error)
-        }));
-    progresNode.textContent = filesize(file.size) + ' / ' + filesize(file.size);
-    console.log('Final req status:', finalResponse.ok);
-    console.dir(finalResponse);
-    const content = await (finalResponse.json().catch((error) => {
-        console.log('Parse error2:')
-        console.dir(error);
-        return {status:'error',body:error}
-    }));
-    console.log('Final', content);
-    if (content?.status == 'error') {
-        alert('Fail ' + JSON.stringify(content, null, '\t'));
-    } else {
-        alert('Done. File ' + file.name + ' was uploaded');
-    }
-    uploaderFieldset.removeAttribute('disabled');
-    event.target.reset();
+function resetHandler(event){
+    const _state = document.getElementById('state');
+    _state.textContent = '';
 }
+
 function filesize(bytes) {
 	if (filesize < 1) { return '0B'; }
 	let units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'], unit = units.length - 1;
