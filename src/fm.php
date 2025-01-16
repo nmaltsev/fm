@@ -78,7 +78,7 @@ a.resource:visited{color:var(--fucsia);}
 	background-color: #f1f1f1;
 }
 .mb1{margin-bottom:1rem;}
-.dialog{width:var(--dialog-width);}
+.dialog{width:min(var(--dialog-width),100%);min-width:240px;}
         </style>
     </head>
     <body>';

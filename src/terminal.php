@@ -3,7 +3,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-define('VERSION','7.2024.09.17');
+define('VERSION','8.2025.01.16');
 
 function getFrom($array, $key, $default) {
     return isset($array[$key]) ? $array[$key] : $default;
@@ -32,7 +32,9 @@ if ($action=='form') {
     textarea{position:absolute;width:100%;height:100%;padding:.5rem;resize:none;}
     nav>a{margin-right:.5rem;}
     nav{margin:0 0 1rem 0;}
+    form{display:flex;}
     form>button{margin-left:1rem;}
+    form>input{flex: 1 1 auto;}
     </style>';
     echo '<header>',
     '<nav>
@@ -55,6 +57,7 @@ if ($action=='form') {
         // TODO add button to stop the command execution, clear interval
         
         echo '<main><textarea id="log"></textarea></main>';
+        // TODO check if process exists
         echo '<script>
 const searchParams = new URLSearchParams(location.search);
 const pid = searchParams.get("pid");
@@ -65,11 +68,12 @@ let _start=0;
 
 function checkProcess(){
     const start = _start;
-    fetch("?action=readtail&f=" + start + "&r=" + resource).then(response => {
-        return response.json();
+    console.log("[checkProcess] start: %s", start)
+    fetch("?action=readtail&f=" + start + "&r=" + resource).then(async (response) => {
+        return [(await response.text()), response.headers.get("x-size")-0];
     }).then(data => {
-        _start = start + data.out.length;
-        document.all.log.value += data.out;
+        _start = start + data[0].length;
+        document.all.log.value += data[0];
         document.all.log.scrollTo(0, document.all.log.scrollHeight);
     });
 }
@@ -77,9 +81,20 @@ window.onload = function(){
     console.log("TODO %s", resource);
     document.all.log.value = "";
     // TODO call check process exist ?action=isrunning&pid=<>
+
+    fetch("?action=isrunning&pid=" + pid).then(response => response.json()).then(data => {
+        console.log("isRunning %s", data.isRunning);
+        if (data.isRunning) {
+            setInterval(checkProcess, 2*1000);
+            checkProcess();
+        } else {
+            checkProcess();
+        }
+    }).catch(() => {
     
-    setInterval(checkProcess, 2*1000);
-    checkProcess();
+    });
+    
+    
 };
 
 </script>';
@@ -120,10 +135,8 @@ else if ($action=='readtail') {
     $from = intval(getFrom($_GET, 'f', null));
     $content = readTailOfFile($path, $from);
 
-    header('Content-Type: application/json');
-    echo json_encode([
-        'out' => $content,
-    ]);
+    header('x-size: '.strlen($content));
+    echo $content;
 }
 else if ($action=='kill') {
     $pid = getFrom($_GET, 'pid', null);
@@ -215,6 +228,7 @@ function readTailOfFile($path, $from=0) {
         $out .= fread($fp, 8192);
     }
     fclose($fp);
+    
     return $out;
 }
 
