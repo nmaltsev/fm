@@ -168,8 +168,14 @@ if ($action == 'dir') {
         if (!isset($_GET['t'])) {
             if (strpos($mime_type, 'video/') === 0) {
                 $next_path = '?action=media&path='.urlencode($path);
+                if (strpos($mime_type, 'video/x-matroska') === 0) {
+                    echo '<div class="f-wrapper">',
+                        '<video playsinline loop autoplay preload=auto controls class="f-max" style="background:#111;max-width:100%;flex:1;" src="',$next_path,'"></video>',
+                    '</div>';
+                    return;
+                }
                 echo '<div class="f-wrapper">',
-                        '<video playsinline loop autoplay preload=auto controls class="f-max" style="background:#111;">',
+                        '<video playsinline loop autoplay preload=auto controls class="f-max" style="background:#111;max-width:100%;flex:1;">',
                             '<source src="',$next_path,'" type="',$mime_type,'"/>',
                         '</video>',
                     '</div>';
