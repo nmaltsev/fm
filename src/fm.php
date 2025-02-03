@@ -95,6 +95,7 @@ if ($action == 'dir') {
         }
         return substr($haystack, -$length) === $needle;
     }
+    $path=normalizePath($path);
     
     if (!is_readable($path)) {
 		$redirect = '?action=error&message=' . urlencode('Read permission denied to '.$path) . (isset($_SERVER['HTTP_REFERER']) ? '&path='.urlencode('?action=dir&path=' . urlencode($_SERVER['HTTP_REFERER'])) : '');
@@ -311,6 +312,7 @@ else if ($action === 'forward2') {
     if (!preg_match('/^[^.][-a-z0-9_.,\s\/@\(\)\[\];\']+$/i', $path)) {
         die('Invalid file name! ['.$path.']');
     }
+    $path = normalizePath($path);
     if (!file_exists($path)) {
         http_response_code(404);
         die();
@@ -453,13 +455,17 @@ else if ($action == 'error') {
     echo '</dir>';
     echo layoutTail();
 }
-else if ($action == 'init') {
+else if ($action == 'home') {
     echo layoutHeader();
     echo '<dir class="wrapper">';
     echo '<h5>',VERSION,'</h5>';
     echo '<a href="?action=info">Info</a><br>';
     $currentPath = urlencode(realpath(dirname(__FILE__)));
     echo '<a href="?action=dir&path='.$currentPath.'">Files</a><br>';
+    $helloPagePath = getenv('FM_HELLO_PAGE') ?: 'misc/homepage.html';
+    if ($helloPagePath) {
+        echo '<iframe src="?action=forward2&path='.urlencode($helloPagePath).'"></iframe>';
+    }
     echo layoutTail();
 }
 else if ($action == 'saveas_form') {
@@ -762,7 +768,20 @@ else if ($action == 'files') {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($images);
 }
+else {
+    header('Location: ?action=home');
+    die();
+}
 
+// convert a shortcast to real path (`~/`)  
+function normalizePath($path) {
+    $homeDir = '~' . DIRECTORY_SEPARATOR;
+    if (strpos($path, $homeDir) === 0) {
+        header('X-DEBUG-REALPATH: ' . getenv('HOME') . DIRECTORY_SEPARATOR . substr($path, strlen($homeDir)));
+        return getenv('HOME') . DIRECTORY_SEPARATOR . substr($path, strlen($homeDir));
+    }
+    return $path;
+}
 function get_ext($s) {$n = strrpos($s,"."); if($n===false) return "";return substr($s,$n+1);}
 function intword($number, $units=null, $kilo=null, $decimals=null){
 	if ($units == null) $units = ['', 'Kb', 'Mb', 'Gb', 'Tb'];
