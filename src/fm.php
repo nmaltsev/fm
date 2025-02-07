@@ -1,5 +1,5 @@
 <?php
-define('VERSION','30.2025.01.08');
+define('VERSION','31.2025.02.07');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -12,6 +12,14 @@ $path = getfrom($_GET, 'path', '');
 $action = getfrom($_GET, 'action', '');
 // TODO do not show the size for directories!
 
+// TODO
+// blue	#0d90ef
+// black #1d1d1d text
+// gray #1d1d1d + 0.5 opacity secondary text
+// green #0ea4ae title
+// pink #9b4de6
+// rose #fb35b5
+
 function layoutHeader() {
     return '<!DOCTYPE html>
 <html lang="en">
@@ -21,8 +29,9 @@ function layoutHeader() {
         <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
         <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
         <style>
-:root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}
-body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;}
+/*:root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}*/
+:root{--blue1:#0d90ef;--dialog-width:480px;--fucsia:#b31edd;}
+body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;color:#1d1d1d;}
 fieldset{border:none;}
 fieldset>legend{float:left;display:block;width:100%;}
 fieldset,fieldset>legend{padding:0;margin:0;}
@@ -45,15 +54,15 @@ input:focus{border-color:#b3b2be;}
 .centered,.__middle{justify-content:center;align-items:center;text-align:center;}
 .files{list-style:none;margin:0;display:grid;grid-gap:0;white-space:nowrap;flex:1 1 auto;overflow:auto;padding:0 0 .5rem 0;
     grid-auto-rows:min-content;font-size:.9rem;line-height:1.2rem;
-    grid-template-columns:repeat(7, min-content) auto;}
+    grid-template-columns:repeat(7, min-content) auto;color:#1d1d1d94;}
 .files>li{display:contents;}
 .files>li:not(:first-child)>a:first-child{overflow:hidden;max-width:50vw;text-overflow:ellipsis;position:sticky;left:0;background:#fff;}
 .files>li:hover>span, .files>li:hover>i, .files>li:hover>a{background:#ddf4ffd6!important;}
 .files>li > span, .files>li > a{padding-left:.5rem;}
 .files .skip-columns{grid-column:span 7;}
 .stick2top{position:sticky;background:#fff;top:0;}
-.files-panel{color:#fff;padding:.5rem;font-size:1rem;line-height:1.2rem;align-items:center;}
-.files-panel>a{margin:0 0 0 1rem;}
+.files-panel{color:#fff;padding:.5rem;font-size:1rem;line-height:1.2rem;align-items:center;min-height:37px;}
+.files-panel>:is(a,span){margin:0 0 0 1rem;}
 .fm_ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 a{text-decoration:none;color:#0049fd;}
 a:hover,a:focus,a:active{text-decoration:underline;}
@@ -108,7 +117,9 @@ if ($action == 'dir') {
     echo '<dir class="wrapper">';
     
     if ($files !== false) { // Show the list of files
-        echo '<header class="files-panel f-row f-min cpanel">', '<span class="fm_ellipsis">', htmlspecialchars($path), '</span>';
+        echo '<header class="files-panel d-flex f-min cpanel">', 
+        '<a href="?action=home">🏠</a>',
+        '<span class="fm_ellipsis f-max" title="',htmlspecialchars($path),'">', htmlspecialchars(basename($path)), '</span>';
         $newlink = '?action=new_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
         echo '<a class="v-btn _btn-a" href="',$newlink,'">New</a>';
         $newlink = '?action=upload_form&path='.urlencode($path).'&redirect='.urlencode('?action=dir&path='.urlencode($path));
@@ -133,8 +144,12 @@ if ($action == 'dir') {
             // TODO show `-rw-r--r--` in a tooltip
             // https://phpdoctest.github.io/en/function.fileperms.html
             echo '<a href="',$nav_link,'">',$octal_perm,'</a>';
-            $file_size = @filesize($next_path);
-            echo '<span title="', $file_size, ' bytes">', intword($file_size), '</span>';
+            if (is_dir($next_path)) {
+                echo '<span></span>';
+            } else {
+                $file_size = @filesize($next_path); 
+                echo '<span title="', $file_size, ' bytes">', intword($file_size), '</span>';
+            }
 
             // TODO `$diff = time() - filemtime($file);`
             $mod_time = @filemtime($next_path);
@@ -158,11 +173,13 @@ if ($action == 'dir') {
         
         $finfo = finfo_open(FILEINFO_MIME);
         $mime_type = finfo_file($finfo, $path);
-        echo '<header class="files-panel f-min f-row cpanel">', 
-            '<span class="fm_ellipsis">', htmlspecialchars($path), ' (', $mime_type, ')','</span>',
+        echo '<header class="files-panel f-min d-flex cpanel">', 
+            // '<a class="v-btn _btn-a" href="', $back_link, '">Back</a>',
+            '<a class="" href="', $back_link, '">🡄</a>',
+            '<span class="fm_ellipsis f-max" title="',htmlspecialchars($path),'">', htmlspecialchars(basename($path)), '</span>',
             // Enable the edit button for SVG images
             (strpos($mime_type, 'image/svg') === 0 ? '<a class="v-btn _btn-a" href="?action=dir&t&path='.urlencode($path).'">Edit</a>': ''),
-            '<a class="v-btn _btn-a" href="', $back_link, '">Back</a>',
+            '<span>(', $mime_type, ')</span>',
         '</header>';
 
         // Skip viewers in case of `&t`
@@ -456,16 +473,20 @@ else if ($action == 'error') {
     echo layoutTail();
 }
 else if ($action == 'home') {
-    echo layoutHeader();
-    echo '<dir class="wrapper">';
-    echo '<h5>',VERSION,'</h5>';
-    echo '<a href="?action=info">Info</a><br>';
     $currentPath = urlencode(realpath(dirname(__FILE__)));
-    echo '<a href="?action=dir&path='.$currentPath.'">Files</a><br>';
+    echo layoutHeader();
+    echo '<dir class="wrapper">',
+        '<div class="flex-row">',
+            '<span>Files V ',VERSION,'</span>',
+            '<a href="?action=info">Info</a>',
+            '<a href="?action=dir&path='.$currentPath.'">Distributive Files</a>',
+        '</div>';
     $helloPagePath = getenv('FM_HELLO_PAGE') ?: 'misc/homepage.html';
+    echo '<div class="d-flex f-max">';
     if ($helloPagePath) {
-        echo '<iframe src="?action=forward2&path='.urlencode($helloPagePath).'"></iframe>';
+        echo '<iframe class="f-max" src="?action=forward2&path='.urlencode($helloPagePath).'"></iframe>';
     }
+    echo '</div>';
     echo layoutTail();
 }
 else if ($action == 'saveas_form') {
