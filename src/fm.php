@@ -20,15 +20,16 @@ $action = getfrom($_GET, 'action', '');
 // pink #9b4de6
 // rose #fb35b5
 
-function layoutHeader() {
+function layoutHeader($title='') {
     return '<!DOCTYPE html>
 <html lang="en">
-    <head>
-    <meta charset="utf-8"/>
-        <meta name="robots" content="noindex, nofollow">
-        <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
-        <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-        <style>
+<head>
+<title>'.htmlspecialchars($title).'</title>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<style>
 /*:root{--blue1:#0071ce;--dialog-width:480px;--fucsia:#b31edd;}*/
 :root{--blue1:#0d90ef;--dialog-width:480px;--fucsia:#b31edd;}
 body{margin:0;width:100vw;height:100vh;font:13px/15px Arial;color:#1d1d1d;}
@@ -113,7 +114,7 @@ if ($action == 'dir') {
     }
     $files = is_dir($path) ? @scandir($path) : false;
 
-    echo layoutHeader();
+    echo layoutHeader(basename($path));
     echo '<dir class="wrapper">';
     
     if ($files !== false) { // Show the list of files
