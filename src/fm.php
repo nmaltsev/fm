@@ -1,5 +1,5 @@
 <?php
-define('VERSION','31.2025.02.07');
+define('VERSION','32.2025.03.05');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -87,6 +87,8 @@ a.resource:visited{color:var(--fucsia);}
 .__primary-transparent:focus {
 	background-color: #f1f1f1;
 }
+.__dir::before{content: "\1F4C1";}
+.__file::before{content: "\1F4C4";}
 .mb1{margin-bottom:1rem;}
 .dialog{width:min(var(--dialog-width),100%);min-width:240px;}
         </style>
@@ -114,7 +116,7 @@ if ($action == 'dir') {
     }
     $files = is_dir($path) ? @scandir($path) : false;
 
-    echo layoutHeader(basename($path));
+    echo layoutHeader(basename($path).(is_dir($path)?'/':''));
     echo '<dir class="wrapper">';
     
     if ($files !== false) { // Show the list of files
