@@ -578,9 +578,12 @@ async function* uploadFile(file, basepath) {
                 }
                 return response;
             })
-            .catch((error) => console.log('Err: ', error));
+            .catch((error) => console.log('Err 1: ', error));
         console.log('Progress pos: %s/%s', bytes, file.size);
         console.dir(response);
+        if (!response) {
+            throw({error: 'ServerError', message: 'Cant upload the file'})
+        }
         
         const content = await response.json().catch((error) => {
             console.log('Parse error1:');
@@ -601,7 +604,7 @@ async function* uploadFile(file, basepath) {
             }
             return response;
         })
-        .catch((error) => console.log('Err: ', error)));
+        .catch((error) => console.log('Err 2: ', error)));
     
     const content = await (finalResponse.json().catch((error) => {
         throw({status:'error',body:error})
