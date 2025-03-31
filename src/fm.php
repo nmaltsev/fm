@@ -481,6 +481,7 @@ else if ($action == 'home') {
     echo '<dir class="wrapper">',
         '<div class="flex-row">',
             '<span>Files V ',VERSION,'</span>',
+            '<span title="The user and group ID of the user running the script">',posix_getuid(),'/',posix_getgid(),'</span>',
             '<a href="?action=info">Info</a>',
             '<a href="?action=dir&path='.$currentPath.'">Distributive Files</a>',
         '</div>';
