@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html>
-    <html>
-        <head>
-            <meta charset="utf-8"/>
-            <style>
+    <head>
+        <meta charset="utf-8"/>
+        <style>
 .rect {
 	background: radial-gradient(94.21% 78.4% at 50% 29.91%, rgba(43, 94, 180, 0.7), rgba(13, 16, 35, 0.42));
 	box-shadow: rgba(255, 255, 255, 0.1) 0px 1px 0px 0px inset, rgba(7, 13, 79, 0.1) 0px 0px 20px 3px, rgba(85, 0, 98, 0.1) 0px 0px 40px 20px, rgba(255, 255, 255, 0.06) 0px 0px 0px 1px inset;
-	}
 }
 .rect:after {
     position: absolute;
@@ -44,21 +42,20 @@
     opacity: 0;
     transition: opacity .3s;
 }
-{
+/* {
 background: radial-gradient(99.74% 100% at 50% 0%, rgba(74, 21, 75, 0.7), rgba(29, 5, 29, 0.42));
     box-shadow: rgba(0, 0, 0, 0.5) 0px 30px 50px 0px, rgba(255, 255, 255, 0.1) 0px 1px 0px 0px inset, rgba(79, 7, 59, 0.1) 0px 0px 20px 3px, rgba(85, 0, 98, 0.1) 0px 0px 40px 20px, rgba(255, 255, 255, 0.06) 0px 0px 0px 1px inset;
 }
 {
 	background: radial-gradient(86.88% 75.47% at 50% 24.53%, rgba(82, 48, 145, 0.7), rgba(26, 11, 51, 0.14));
     box-shadow: rgba(255, 255, 255, 0.1) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.4) 0px 30px 50px 0px, rgba(51, 3, 129, 0.09) 0px 4px 24px 0px, rgba(255, 255, 255, 0.06) 0px 0px 0px 1px inset;
-}                
-            </style>
-        </head>
-        <body>
-            <h2>Welcome</h2>
-            <ul>
-                <li><a href="?action=dir&path=%2Fhome%2Fnmaltsev%2FDocuments" target="_parent">Home</a></li>
-            </ul>
-        </body>
-    </html>
+}                 */
+        </style>
+    </head>
+    <body>
+        <h2>Welcome</h2>
+        <ul>
+            <li><a href="../fm.php?action=dir&path=<?= urlencode(getenv('HOME')) ?>" target="_parent">Home</a></li>
+        </ul>
+    </body>
 </html>

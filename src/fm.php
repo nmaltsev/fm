@@ -1,5 +1,5 @@
 <?php
-define('VERSION','32.2025.03.05');
+define('VERSION','33.2026.06.02');
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -485,10 +485,12 @@ else if ($action == 'home') {
             '<a href="?action=info">Info</a>',
             '<a href="?action=dir&path='.$currentPath.'">Distributive Files</a>',
         '</div>';
-    $helloPagePath = getenv('FM_HELLO_PAGE') ?: 'misc/homepage.html';
+    $helloPagePath = getenv('FM_HELLO_PAGE') ?: null; // ?: 'misc/homepage.php';
     echo '<div class="d-flex f-max">';
-    if ($helloPagePath) {
+    if (isset($helloPagePath)) {
         echo '<iframe class="f-max" src="?action=forward2&path='.urlencode($helloPagePath).'"></iframe>';
+    } else {
+        echo '<iframe class="f-max" src="misc/homepage.php"></iframe>';
     }
     echo '</div>';
     echo layoutTail();
