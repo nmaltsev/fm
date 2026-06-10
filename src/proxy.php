@@ -22,6 +22,14 @@ if (!preg_match("`https?\://`i", $url)) {
         echo $content;
         // TODO make it manageable by a query property
         if ($is_html) echo '<script>
+function unhash(url) {
+    const pos = url.lastIndexOf("#");
+    if (pos != -1) {
+        return [url.substring(0, pos), url.substring(pos)]
+    } else {
+        return [url]
+    }
+}
 function normalisePath(path, refererPath){
     if (path.startsWith("/")) {
         return path;
@@ -62,6 +70,13 @@ window.addEventListener("error", function(e) {
         console.log("Style loading error `%s` %s,%s,%s", e.target.href, originalLink, resourcePath, absResourcePath);
         e.target.href="?url="+encodeURIComponent(absResourcePath);
         // e.target.setAttribute("href","?url="+encodeURIComponent(absResourcePath));
+        e.target.__fixed=1;
+    }
+    else if (tagName.toLowerCase() === "use") {
+        const [originalLink, hash] = unhash(e.target.getAttribute("xlink:href"));
+        const absResourcePath = normalisePath(originalLink,resourcePath);
+        console.log("Style loading error `%s` %s,%s", originalLink, resourcePath, absResourcePath);
+        e.target.setAttribute("xlink:href", "?url=" + encodeURIComponent(absResourcePath) + (hash||""));
         e.target.__fixed=1;
     } 
     else {
