@@ -5,23 +5,7 @@ $url = $_REQUEST['url'];
 define('BASE_URL', getenv('PROXY_BASE_URL') ?: '');
 // php -S localhost:9097
 $origin = null;
-
-function parseContent(){
-    // TODO
-}
-
-// make sure we have a valid URL and not file path
-if (!preg_match("`https?\://`i", $url)) {
-    if (file_exists($url)) {
-        $mime_type = get_mime_type($url);
-        $is_html = strpos($mime_type, 'text/html') === 0 /*|| endsWithBeforePHP8($path, '.html')*/;
-        header('Content-Type: '.$mime_type);
-        $content = file_get_contents($url);
-        //// $content = preg_replace("/some-smart-regex-here/i", "$1 or $2 smart replaces", $content);
-        if ($is_html) echo '<!-- PRX2 -->';
-        echo $content;
-        // TODO make it manageable by a query property
-        if ($is_html) echo '<script>
+$auxilary_script = '<script>
 function unhash(url) {
     const pos = url.lastIndexOf("#");
     if (pos != -1) {
@@ -84,6 +68,22 @@ window.addEventListener("error", function(e) {
         console.dir(e);
     }
 }, true);</script>';
+
+// make sure we have a valid URL and not file path
+if (!preg_match("`https?\://`i", $url)) {
+    if (file_exists($url)) {
+        $mime_type = get_mime_type($url);
+        $is_html = strpos($mime_type, 'text/html') === 0 /*|| endsWithBeforePHP8($path, '.html')*/;
+        header('Content-Type: '.$mime_type);
+        $content = file_get_contents($url);
+        //// $content = preg_replace("/some-smart-regex-here/i", "$1 or $2 smart replaces", $content);
+        if (true) {
+            echo parse_file_content($url, $content);
+        } else {
+            echo $content;
+            // TODO make it manageable by a query property
+            if ($is_html) echo $auxilary_script;
+        }
         die();
     } else {
         // For debugging
@@ -144,4 +144,134 @@ function get_mime_type($path) {
         $mime_type = finfo_file($finfo, $path);
         return $mime_type;
     }
+}
+
+function parse_file_content($url, $html) {
+    $pattern = '~(?:src|href|xlink:href)\s*=\s*(?:"([^"]*?)"|\'([^\']*?)\'|([^\s>]*))~i';
+
+    return preg_replace_callback($pattern, function ($m) use ($url) {
+        $attrValue = $m[1] !== ''
+            ? $m[1]
+            : ($m[2] !== '' ? $m[2] : $m[3]);
+
+        // Ignore empty values and special schemes
+        if (
+            $attrValue === '' ||
+            preg_match('~^(?:data:|javascript:|mailto:|tel:)~i', $attrValue)
+        ) {
+            return $m[0];
+        }
+
+        // Split into path and hash
+        $hashPos = strpos($attrValue, '#');
+        if ($hashPos !== false) {
+            $path = substr($attrValue, 0, $hashPos);
+            $hash = substr($attrValue, $hashPos); // includes #
+        } else {
+            $path = $attrValue;
+            $hash = '';
+        }
+
+        $absolute = absolute_path($url, $path);
+
+        $newUrl = '/proxy.php?url=' . rawurlencode($absolute) . $hash;
+
+        // Preserve original quote style
+        if ($m[1] !== '') {
+            return str_replace($m[1], $newUrl, $m[0]);
+        }
+
+        if ($m[2] !== '') {
+            return str_replace($m[2], $newUrl, $m[0]);
+        }
+
+        return preg_replace(
+            '~=\s*[^\s>]*$~',
+            '="' . $newUrl . '"',
+            $m[0]
+        );
+    }, $html);
+}
+
+/**
+ * Resolve a relative URL against a base URL.
+ */
+function absolute_url($baseUrl, $relativeUrl)
+{
+    if ($relativeUrl === '') {
+        return $baseUrl;
+    }
+
+    // Already absolute
+    if (preg_match('~^[a-z][a-z0-9+\-.]*://~i', $relativeUrl)) {
+        return $relativeUrl;
+    }
+
+    $base = parse_url($baseUrl);
+
+    $scheme = $base['scheme'] ?? 'http';
+    $host   = $base['host'] ?? '';
+    $port   = isset($base['port']) ? ':' . $base['port'] : '';
+
+    // Protocol-relative URL: //cdn.com/file.js
+    if (strpos($relativeUrl, '//') === 0) {
+        return $scheme . ':' . $relativeUrl;
+    }
+
+    // Root-relative URL
+    if (strpos($relativeUrl, '/') === 0) {
+        return $scheme . '://' . $host . $port . $relativeUrl;
+    }
+
+    $basePath = $base['path'] ?? '/';
+
+    // If base URL points to a file, use its directory
+    $dir = preg_replace('~/[^/]*$~', '/', $basePath);
+
+    $path = $dir . $relativeUrl;
+
+    // Normalize ./ and ../
+    $segments = [];
+    foreach (explode('/', $path) as $segment) {
+        if ($segment === '' || $segment === '.') {
+            continue;
+        }
+        if ($segment === '..') {
+            array_pop($segments);
+            continue;
+        }
+        $segments[] = $segment;
+    }
+
+    return $scheme . '://' . $host . $port . '/' . implode('/', $segments);
+}
+
+function absolute_path(string $base, string $rel): string
+{
+    if ($rel === '' || $rel[0] === '/') {
+        return $rel;
+    }
+
+    $dir = is_dir($base)
+        ? $base
+        : dirname($base);
+
+    $path = $dir . '/' . $rel;
+
+    $parts = [];
+
+    foreach (explode('/', $path) as $part) {
+        if ($part === '' || $part === '.') {
+            continue;
+        }
+
+        if ($part === '..') {
+            array_pop($parts);
+            continue;
+        }
+
+        $parts[] = $part;
+    }
+
+    return '/' . implode('/', $parts);
 }
