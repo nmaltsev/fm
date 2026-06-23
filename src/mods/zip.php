@@ -5,11 +5,25 @@ include_once('zip.lib.php');
 function getFileContent($path) {
     $fh = fopen($path, 'rb');
     if (!$fh) {
-        die('Error: Unable to open file.');
+        throw new \RuntimeException("Unable to open file: $path");
     }
+
     $size = filesize($path);
+    error_log("getFileContent:path $path");
+    error_log("getFileContent:size $size");
+
+    if ($size === 0) {
+        fclose($fh);
+        return '';
+    }
+
     $content = fread($fh, $size);
     fclose($fh);
+
+    if ($content === false) {
+        throw new \RuntimeException("Unable to read file: $path");
+    }
+
     return $content;
 }
 function fileWrite($path, $data) {
