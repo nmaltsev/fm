@@ -552,69 +552,116 @@ else if ($action == 'upload_form') {
     echo '<script>';
 echo "
 // TODO read from form
-const chunk_size = 512*1024; /* 1048570 1MB chunk size*/
-function* readFile(file) {
-    const filesize = file.size;
-    const filename = file.name;
-    let pos = 0, chunk;
-    while(pos < filesize) {
-        chunk = file.slice(pos, pos+chunk_size);
-        pos += chunk_size;
-        const formData = new FormData();
-        formData.append('chunk', chunk);
-        formData.append('filename', filename);
-        yield [formData, pos];
-    }
-};
+const chunk_size = 4*1024*1024; /* 1048570 1MB chunk size*/
+const upload_concurrency = 4;
+
+function createUploadId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function readChunk(file, index) {
+    const start = index * chunk_size;
+    const end = Math.min(start + chunk_size, file.size);
+    return file.slice(start, end);
+}
+
 function changeHandler(event) {
     const files = Array.from(event.target.files);
     const _state = document.getElementById('state');
+    if (!files.length) {
+        _state.textContent = '';
+        return;
+    }
     const nameMax = Math.max.apply(null, files.map(file => file.name.length))
-    _state.textContent = files.map(file => file.name.padEnd(nameMax) + ' ' + filesize(file.size) + ' ' + file.lastModifiedDate.toLocaleString()).join('\\n')
+    _state.textContent = files.map(file => file.name.padEnd(nameMax) + ' ' + filesize(file.size) + ' ' + new Date(file.lastModified).toLocaleString()).join('\\n')
 }
-async function* uploadFile(file, basepath) {
-    for (const [chunk, bytes] of readFile(file)) { 
-        const response = await fetch('?action=uploadaction', {method:'POST',body:chunk})
-            .then(function(response){
-                if (response.status >= 400 && response.status < 600) {
-                    throw new Error('Bad response from server');
-                }
-                return response;
-            })
-            .catch((error) => console.log('Err 1: ', error));
-        console.log('Progress pos: %s/%s', bytes, file.size);
-        console.dir(response);
-        if (!response) {
-            throw({error: 'ServerError', message: 'Cant upload the file'})
-        }
-        
-        const content = await response.json().catch((error) => {
-            console.log('Parse error1:');
-            console.dir(error);
-            return {status:'error',body:error}
-        });
-        console.log('Resp:', content);
-        yield bytes;
-    };
-    const destinationData = new FormData(); 
-    destinationData.append('filename', file.name);
-    // Must be an absolute path
-    destinationData.append('basepath', basepath); 
-    const finalResponse = await (fetch('?action=uploadaction', {method:'POST',body:destinationData})
-        .then(function(response){
-            if (response.status >= 400 && response.status < 600) {
-                throw new Error('Bad response from server');
-            }
-            return response;
+
+async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+    }
+    const content = await response.json();
+    if (content.status === 'error') {
+        throw new Error(content.error || 'Upload error');
+    }
+    return content;
+}
+
+async function uploadFile(file, basepath, onProgress) {
+    const upload_id = createUploadId();
+    const total_chunks = Math.ceil(file.size / chunk_size);
+
+    // Create the destination-sized temporary file once. Chunk requests then write
+    // directly at their offsets instead of repeatedly appending to the same file.
+    await fetchJson('?action=uploadaction', {
+        method: 'POST',
+        body: new URLSearchParams({
+            mode: 'init',
+            upload_id: upload_id,
+            filename: file.name,
+            total_size: String(file.size),
+            total_chunks: String(total_chunks)
         })
-        .catch((error) => console.log('Err 2: ', error)));
-    
-    const content = await (finalResponse.json().catch((error) => {
-        throw({status:'error',body:error})
-    }));
-    console.log('Final', content);
-    yield file.size;
+    });
+
+    let nextChunk = 0;
+    let uploadedBytes = 0;
+    const progress = new Uint8Array(total_chunks);
+
+    async function worker() {
+        while (true) {
+            const index = nextChunk++;
+            if (index >= total_chunks) return;
+
+            const start = index * chunk_size;
+            const chunk = readChunk(file, index);
+            const chunkUrl = '?action=uploadaction&mode=chunk'
+                + '&upload_id=' + encodeURIComponent(upload_id)
+                + '&chunk_index=' + index
+                + '&offset=' + start
+                + '&total_size=' + file.size;
+
+            // Send the chunk as the raw HTTP request body. This avoids PHP's
+            // upload_max_filesize limit and also avoids an extra PHP upload-temp
+            // file/copy before the chunk reaches our temporary upload file.
+            await fetchJson(chunkUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/octet-stream'},
+                body: chunk
+            });
+
+            if (!progress[index]) {
+                progress[index] = 1;
+                uploadedBytes += chunk.size;
+                onProgress(uploadedBytes, file.size);
+            }
+        }
+    }
+
+    await Promise.all(
+        Array.from({length: Math.min(upload_concurrency, Math.max(total_chunks, 1))}, worker)
+    );
+
+    const finalResponse = await fetchJson('?action=uploadaction', {
+        method: 'POST',
+        body: new URLSearchParams({
+            mode: 'finalize',
+            upload_id: upload_id,
+            filename: file.name,
+            basepath: basepath,
+            total_size: String(file.size),
+            total_chunks: String(total_chunks)
+        })
+    });
+
+    onProgress(file.size, file.size);
+    return finalResponse;
 }
+
 async function uploadHandler(event){
     event.preventDefault();
     event.stopPropagation();
@@ -622,27 +669,23 @@ async function uploadHandler(event){
     const uploaderFieldset = document.getElementById('uploader');
     const basepath = document.querySelector('input[name=path]').value;
     const progresNode = document.getElementById('progres');
-    
+
     uploaderFieldset.setAttribute('disabled', true);
-    progresNode.textContent = '0 / ' + file.size;
     const _state = document.getElementById('state');
 
     _state.textContent = '';
 
     for(let i = 0; i < files.length; i++){
         try {
-            for await (const bytes of uploadFile(files[i], basepath)) {
-                progresNode.textContent = filesize(bytes) + ' / ' + filesize(files[i].size);
-            }
+            progresNode.textContent = '0 / ' + filesize(files[i].size);
+            await uploadFile(files[i], basepath, function(bytes, total) {
+                progresNode.textContent = filesize(bytes) + ' / ' + filesize(total);
+            });
             // report success
             _state.textContent += 'S ' + files[i].name + '\\n';
         } catch(error) {
             // report error
-            if (error.hasOwnProperty('status') && error['status'] === 'error') {
-                _state.textContent += 'F ' + files[i].name + ' ' + error['body'] + '\\n';
-            } else {
-                _state.textContent += 'F ' + files[i].name + ' ' + error + '\\n';
-            }
+            _state.textContent += 'F ' + files[i].name + ' ' + error + '\\n';
         }
     }
 
@@ -657,63 +700,207 @@ function resetHandler(event){
 }
 
 function filesize(bytes) {
-	if (filesize < 1) { return '0B'; }
-	let units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'], unit = units.length - 1;
+    if (bytes < 1) { return '0B'; }
+    let units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'], unit = units.length - 1;
     for (let i=0; i < units.length; i++) {
-		if (bytes < Math.pow(1024, i+1)) {
-			unit = i;
-			break;
-		}
-	}
+        if (bytes < Math.pow(1024, i+1)) {
+            unit = i;
+            break;
+        }
+    }
     const humanized = bytes / Math.pow(1024, unit);
     const suffix = units[unit] || '';
-	return humanized.toFixed(2) + suffix
+    return humanized.toFixed(2) + suffix
 }";
     echo '</script>';
     echo layoutTail();
 }
 else if ($action == 'uploadaction') {
-    session_start();
-    
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-        $filename = $_POST['filename'];
-    
-        if (!isset($_SESSION[$filename])) {
-			defined('TMP_DIR') or define('TMP_DIR', sys_get_temp_dir());
-            $_SESSION[$filename] = tempnam(TMP_DIR, 'upl');
-        }
-    
-        $tmpfile = $_SESSION[$filename];
         header('Content-Type: application/json; charset=utf-8');
-    
-        if (isset($_FILES["chunk"])) {
-            $chunk = $_FILES["chunk"]["tmp_name"];
-            # ?
-            # file_put_contents($tmpfile, file_get_contents($chunk), FILE_APPEND);
-            $nb = stream_copy_to_stream(fopen($chunk, 'r'),fopen($tmpfile, 'a'));
-            if ($nb == false) {
-				#TODO handle error
-			}
+
+        $mode = $_POST['mode'] ?? $_GET['mode'] ?? '';
+        $upload_id = $_POST['upload_id'] ?? $_GET['upload_id'] ?? '';
+
+        if (!preg_match('/^[a-f0-9]{32}$/', $upload_id)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'error' => 'Invalid upload id']);
+            die();
+        }
+
+        defined('TMP_DIR') or define('TMP_DIR', sys_get_temp_dir());
+
+        $tmpfile = TMP_DIR . DIRECTORY_SEPARATOR . 'fm-upload-' . $upload_id . '.part';
+        $mapfile = TMP_DIR . DIRECTORY_SEPARATOR . 'fm-upload-' . $upload_id . '.map';
+
+        if ($mode === 'init') {
+            $filename = $_POST['filename'] ?? '';
+            $total_size = filter_var($_POST['total_size'] ?? null, FILTER_VALIDATE_INT);
+            $total_chunks = filter_var($_POST['total_chunks'] ?? null, FILTER_VALIDATE_INT);
+
+            if ($filename === '' || $total_size === false || $total_size < 0 ||
+                $total_chunks === false || $total_chunks < 1) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'error' => 'Invalid upload metadata']);
+                die();
+            }
+
+            // Create the temporary file at its final size so every chunk can be
+            // written at its own offset. This avoids the append/seek degradation
+            // of a growing file and also permits several chunks to be in flight.
+            $fh = @fopen($tmpfile, 'w+b');
+            if (!$fh || !@ftruncate($fh, $total_size)) {
+                if ($fh) fclose($fh);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Cannot create temporary upload file']);
+                die();
+            }
+            fclose($fh);
+
+            $map = @fopen($mapfile, 'w+b');
+            if (!$map || !@ftruncate($map, $total_chunks)) {
+                if ($map) fclose($map);
+                @unlink($tmpfile);
+                @unlink($mapfile);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Cannot create upload map']);
+                die();
+            }
+            fclose($map);
+
+            echo json_encode([
+                'status' => 'init',
+                'upload_id' => $upload_id,
+                'total_size' => $total_size,
+                'total_chunks' => $total_chunks
+            ]);
+        } else if ($mode === 'chunk') {
+            $chunk_index = filter_var($_GET['chunk_index'] ?? null, FILTER_VALIDATE_INT);
+            $offset = filter_var($_GET['offset'] ?? null, FILTER_VALIDATE_INT);
+            $total_size = filter_var($_GET['total_size'] ?? null, FILTER_VALIDATE_INT);
+            $chunk_size = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+
+            if ($chunk_index === false || $chunk_index < 0 ||
+                $offset === false || $offset < 0 ||
+                $total_size === false || $total_size < 0 ||
+                $chunk_size < 1) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'error' => 'Invalid chunk']);
+                die();
+            }
+
+            $expected_size = min(4 * 1024 * 1024, $total_size - $offset);
+            if ($expected_size < 0 || $chunk_size !== $expected_size ||
+                $offset + $chunk_size > $total_size ||
+                !file_exists($tmpfile) || !file_exists($mapfile)) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'error' => 'Invalid chunk size or upload']);
+                die();
+            }
+
+            $in = @fopen('php://input', 'rb');
+            $out = @fopen($tmpfile, 'r+b');
+            $map = @fopen($mapfile, 'r+b');
+
+            if (!$in || !$out || !$map) {
+                if ($in) fclose($in);
+                if ($out) fclose($out);
+                if ($map) fclose($map);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Cannot open temporary upload']);
+                die();
+            }
+
+            // The network transfers happen concurrently. Only the short disk write
+            // is locked, so one slow chunk does not serialize the HTTP uploads.
+            if (!flock($out, LOCK_EX)) {
+                fclose($in); fclose($out); fclose($map);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Cannot lock temporary upload']);
+                die();
+            }
+
+            if (fseek($out, $offset, SEEK_SET) !== 0) {
+                flock($out, LOCK_UN);
+                fclose($in); fclose($out); fclose($map);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Cannot seek temporary upload']);
+                die();
+            }
+
+            $written = stream_copy_to_stream($in, $out);
+            fflush($out);
+            flock($out, LOCK_UN);
+            fclose($in);
+            fclose($out);
+
+            if ($written !== $chunk_size) {
+                fclose($map);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Incomplete chunk write']);
+                die();
+            }
+
+            if (!flock($map, LOCK_EX)) {
+                fclose($map);
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'error' => 'Cannot lock upload map']);
+                die();
+            }
+            fseek($map, $chunk_index, SEEK_SET);
+            fwrite($map, "\1");
+            fflush($map);
+            flock($map, LOCK_UN);
+            fclose($map);
+
             echo json_encode([
                 'status' => 'chunk',
-                'filename' => $filename,
-                'tmpfile' => $tmpfile
+                'upload_id' => $upload_id,
+                'chunk_index' => $chunk_index,
+                'bytes' => $written
             ]);
-        } else {
-            $basepath = $_POST['basepath'];
-            if (isset($basepath)) {
-                $filename = $basepath.'/'.$filename;
+        } else if ($mode === 'finalize') {
+            $filename = $_POST['filename'] ?? '';
+            $basepath = $_POST['basepath'] ?? '';
+            $total_size = filter_var($_POST['total_size'] ?? null, FILTER_VALIDATE_INT);
+            $total_chunks = filter_var($_POST['total_chunks'] ?? null, FILTER_VALIDATE_INT);
+
+            if ($filename === '' || $basepath === '' || $total_size === false ||
+                $total_size < 0 || $total_chunks === false || $total_chunks < 1 ||
+                !file_exists($tmpfile) || !file_exists($mapfile)) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'error' => 'Invalid finalize request']);
+                die();
             }
+
+            // Do not rename a sparse/incomplete file. Every chunk must have
+            // acknowledged receipt in the upload map.
+            $map = @fopen($mapfile, 'rb');
+            $received = $map ? stream_get_contents($map) : false;
+            if ($map) fclose($map);
+
+            if ($received === false || strlen($received) !== $total_chunks ||
+                strspn($received, "\1") !== $total_chunks ||
+                filesize($tmpfile) !== $total_size) {
+                http_response_code(409);
+                echo json_encode(['status' => 'error', 'error' => 'Upload is incomplete']);
+                die();
+            }
+
+            $filename = $basepath.'/'.$filename;
+
             // Attention: the $filename must be an absolute path
             // TODO the filename may include the path manipulations like path injections: '/home/user/uploads/' + '../../../passwd'
             // $ext = get_ext($path);
             // ? sprintf('./uploads/%s.%s',sha1_file($filename),$ext);
             if (preg_match('/\.{1,2}\//', $filename) == 1) {
                 @unlink($tmpfile);
+                @unlink($mapfile);
                 die('{"status":"error","error":"Invalid file path","filename":"'.$filename.'"}');
             }
+
             $is_success = @rename($tmpfile, $filename);
-            @unlink($tmpfile);
+            @unlink($mapfile);
 
             if ($is_success) {
                 echo json_encode([
@@ -730,8 +917,10 @@ else if ($action == 'uploadaction') {
                     'tmpfile' => $tmpfile
                 ]);
             }
+        } else {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'error' => 'Invalid upload mode']);
         }
-        // exit();
     }
 }
 
